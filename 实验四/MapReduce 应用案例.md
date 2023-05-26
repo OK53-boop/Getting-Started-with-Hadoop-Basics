@@ -1896,7 +1896,19 @@ hadoop fs -cat /class6/out4/part-r-00000
 
 
 21.
+问题分析
 
+求工资比上司高的员工姓名及工资，需要得到上司工资及上司所有下属员工，通过比较他们工资高低得到比上司工资高的员工。在 Mapper 阶段输出经理数据和员工对应经理表数据，其中经理数据 key 为员工编号、value 为"M，该员工工资"，员工对应经理表数据 key 为经理编号、value 为"E，该员工姓名，该员工工资"。然后在 Shuffle 阶段把传过来的经理数据和员工对应经理表数据进行归组，如编号为 7698 员工，value 中标志 M 为自己工资，value 中标志 E 为其下属姓名及工资。最后在 Reduce 中遍历比较员工与经理工资高低，输出工资高于经理的员工。
+
+请详细分析一下。
+    
+这是一个数据处理的问题，需要进行 MapReduce 操作。首先，在 Mapper 阶段，我们需要输出经理数据和员工对应经理表数据。经理数据的 key 为员编号，value 为"M，该员工工资"，表示该员工是经理，同时记录了该员工的工资。员工对应经表数据的 key 为经理编号，value 为"E，该员工姓名，该员工工资"，表示该员工是下属，同时记录该下属的姓名和工资。
+
+然后，在 Shuffle 阶段，我们需要把传过来的经理数据和员工对应经理表数据进行归组，以便在 Reduce 阶段进行处理。具体来说，我们需要按照员工编号将经理数据和员工对应经理表数据进行归组，这样就可以将每个员工的经理数据和下属数据放在一起。
+
+最后，在 Reduce 阶段，我们需要遍历每个员工的经理数据和下属数据，比较他们的工资高低，如果下属的工资高于经理的工资，则输出该下属的姓名和工资。这样就可以得到工资比上司高的员工姓名及工资。
+
+总的来说，这个问题需要进行 Map 操作，包括 Mapper、Shuffle 和 Reduce 三个阶段。在 Mapper 阶段，我们需要输出经理数据和员工对应经理表数据；在 Shuffle 阶段，我们需要将它们进行归组；在 Reduce 阶段，我们需要遍历每个员工的经理数据和下属数据，比他们的工资高低，输出工资高于经理的员工。
 
 
 
@@ -1905,7 +1917,263 @@ hadoop fs -cat /class6/out4/part-r-00000
 
 
 22.
+import java.io.IOException;
+import java.util.HashMap;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.conf.Configured;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
+import org.apache.hadoop.util.GenericOptionsParser;
+import org.apache.hadoop.util.Tool;
+import org.apache.hadoop.util.ToolRunner;
+
+public class Q5EarnMoreThanManager extends Configured implements Tool {
+
+    public static class MapClass extends Mapper<LongWritable, Text, Text, Text> {
+
+        public void map(LongWritable key, Text value, Context context) throws IOException,         InterruptedException {
+
+            // 对员工文件字段进行拆分
+            String[] kv = value.toString().split(",");
+
+            // 输出经理表数据，其中key为员工编号和value为M+该员工工资
+            context.write(new Text(kv[0].toString()), new Text("M," + kv[5]));
+
+            // 输出员工对应经理表数据，其中key为经理编号和value为(E，该员工姓名，该员工工资)
+            if (null != kv[3] && !"".equals(kv[3].toString())) {
+                context.write(new Text(kv[3].toString()), new Text("E," + kv[1] + "," + kv[5]));
+            }
+        }
+    }
+
+    public static class Reduce extends Reducer<Text, Text, Text, Text> {
+
+        public void reduce(Text key, Iterable<Text> values, Context context) throws IOException,         InterruptedException {
+
+            // 定义员工姓名、工资和存放部门员工Map
+            String empName;
+            long empSalary = 0;
+            HashMap<String, Long> empMap = new HashMap<String, Long>();
+
+            // 定义经理工资变量
+            long mgrSalary = 0;
+
+            for (Text val : values) {
+                if (val.toString().startsWith("E")) {
+                    // 当是员工标示时，获取该员工对应的姓名和工资并放入Map中
+                    empName = val.toString().split(",")[1];
+                    empSalary = Long.parseLong(val.toString().split(",")[2]);
+                    empMap.put(empName, empSalary);
+                } else {
+                    // 当时经理标志时，获取该经理工资
+                    mgrSalary = Long.parseLong(val.toString().split(",")[1]);
+                }
+            }
+
+            // 遍历该经理下属，比较员工与经理工资高低，输出工资高于经理的员工
+            for (java.util.Map.Entry<String, Long> entry : empMap.entrySet()) {
+                if (entry.getValue() > mgrSalary) {
+                    context.write(new Text(entry.getKey()), new Text("" + entry.getValue()));
+                }
+            }
+        }
+    }
+
+    @Override
+    public int run(String[] args) throws Exception {
+
+        // 实例化作业对象，设置作业名称
+        Job job = new Job(getConf(), "Q5EarnMoreThanManager");
+        job.setJobName("Q5EarnMoreThanManager");
+
+        // 设置Mapper和Reduce类
+        job.setJarByClass(Q5EarnMoreThanManager.class);
+        job.setMapperClass(MapClass.class);
+        job.setReducerClass(Reduce.class);
+
+        // 设置输入格式类
+        job.setInputFormatClass(TextInputFormat.class);
+
+        // 设置输出格式类
+        job.setOutputFormatClass(TextOutputFormat.class);
+        job.setOutputKeyClass(Text.class);
+        job.setOutputValueClass(Text.class);
+
+        // 第1个参数为员工数据路径和第2个参数为输出路径
+String[] otherArgs = new GenericOptionsParser(job.getConfiguration(), args).getRemainingArgs();
+        FileInputFormat.addInputPath(job, new Path(otherArgs[0]));
+        FileOutputFormat.setOutputPath(job, new Path(otherArgs[1]));
+
+        job.waitForCompletion(true);
+        return job.isSuccessful() ? 0 : 1;
+    }
+
+    /**
+     * 主方法，执行入口
+     * @param args 输入参数
+     */
+    public static void main(String[] args) throws Exception {
+        int res = ToolRunner.run(new Configuration(), new Q5EarnMoreThanManager(), args);
+        System.exit(res);
+    }
+}
+请详细分析一下每一句代码。
+    
+    
+    好的，我会逐行解释这段代码的含义和作用。
+
+```java
+import java.io.IOException;
+import java.util.HashMap;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.conf.Configured;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
+import org.apache.hadoop.util.GenericOptionsParser;
+import org.apache.hadoop.util.Tool;
+import org.apache.hadoop.util.ToolRunner;
+```
+这部分代码是导入所需的 Java 类库。
+
+```java
+public class Q5EarnMoreThanManager extends Configured implements Tool {
+```
+这里定义了一个名为 Q5EarnMoreThanManager 的类，它继承了 Configured 类并实现了 Tool 接口。
+
+```java
+public static class MapClass extends Mapper<LongWritable, Text, Text, Text> {
+```
+这里定义了一个名为 MapClass 的静态内部类，它继承了 Mapper 类，并指定了 Mapper 的输入键、输入值、输出键和输出值的类型。
+
+```java
+public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
+```
+这里定义了一个名为 map 的方法，它重写了 Mapper 类中的 map 方法。它的参数包括输入键、输入值和上下文对象，它的作用是将输入的员工数据进行拆分，并输出经理数据和员工对应经理表数据。
+
+```java
+String[] kv = value.toString().split(",");
+```
+这里将输入的员工数据按逗号进行拆分，并将结果存储在一个字符串数组中。
+
+```java
+context.write(new Text(kv[0].toString()), new Text("M," + kv[5]));
+```
+这里输出经理数据，其中 key为员工编号，value 为"M，该员工工资"，表示该员工是经理，同时记录了该员工的工资。
+
+```java
+context.write(new Text(kv[3].toString()), new Text("E," + kv[1] + "," + kv[5]));
+```
+这里输出员工对应经理表数据，其中 key 为经理编号， 为"E，该员工姓名，该员工工资"，表示该员工是下属，同时记录该下属的姓名和工资。
+
+```java
+public static class Reduce extends Reducer<Text, Text, Text, Text> {
+```
+这里定义了一个名为 Reduce 的静态内部类，它继承了 Reducer 类，并指定了 Reducer 的输入键、输入值、输出键和输出值的类型。
+
+```java
+public void reduce(Text key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
+```
+这里定义了一个名为 reduce 的方法，它重写了 Reducer 类中的 reduce 方法。它的参数包括输入键、输入值和上下文对象，它的作用是遍历每个员工的经理数据和下属数据，比较他们的工资高低，如果下属的工资高于经理的工资，则输出该下属的姓名和工资。
+
+```java
+String empName;
+long empSalary = 0;
+HashMap<String, Long> empMap = new HashMap<String, Long>();
+```
+这里定义了三个变量，分别表示员工姓名、工资和存放部门员工的 HashMap。
+
+```java
+long mgrSalary = 0;
+```
+这里定义了一个变量，表示经理的工资。
+
+```java
+for (Text val : values) {
+    if (val.toString().startsWith("E")) {
+        empName = val.toString().split(",")[1];
+        empSalary = Long.parseLong(val.toString().split(",")[2]);
+        empMap.put(empName, empSalary);
+    } else {
+        mgrSalary = Long.parseLong(val.toString().split(",")[1]);
+    }
+}
+```
+这里遍历输入的值，如果是员工数据，则将员工姓名和工资存入 HashMap 中；如果是经理数据，则将经理的工资存入 mgrSalary 变量中。
+
+```java
+for (java.util.Map.Entry<String, Long> entry : empMap.entrySet()) {
+    if (entry.getValue() > mgrSalary) {
+        context.write(new Text(entry.getKey()), new Text("" + entry.getValue()));
+    }
+}
+```
+这里遍历 HashMap 中的员工数据，比较员工与经理工资高低，输出工资高于经理的员工。
+
+```java
+@Override
+public int run(String args) throws Exception {
+```
+这里重写了 Tool 接口中的 run 方法。
+
+```java
+Job job = new Job(getConf(), "Q5EarnMoreThanManager");
+job.setJobName("Q5EarnMoreThanManager");
+```
+这里创建了一个 Job 对象，并设置了作业名称。
+
+```java
+job.setJarByClass(Q5EarnMoreThanManager.class);
+job.setMapperClass(MapClass.class);
+job.setReducerClass(Reduce.class);
+```
+这里设置了 Mapper 和 Reducer 类。
+
+```java
+job.setInputFormatClass(TextInputFormat.class);
+job.setOutputFormatClass(TextOutputFormat.class);
+job.setOutputKeyClass(Text.class);
+job.setOutputValueClass(Text.class);
+```
+这里设置了输入格式、输出格式、输出键和输出值的类型。
+
+```java
+String[] otherArgs = new GenericOptionsParser(job.getConfiguration(), args).getRemainingArgs();
+FileInputFormat.addInputPath(job, new Path(otherArgs[0]));
+FileOutputFormat.setOutputPath(job, new Path(otherArgs[1]));
+```
+这里设置了输入路径和输出路径。
+
+```java
+job.waitForCompletion(true);
+return job.isSuccessful() ? 0 : 1;
+```
+这里提交作业并返回作业执行结果。
+
+```java
+public static void main(String[] args) throws Exception {
+    int res = ToolRunner.run(new Configuration(), new Q5EarnMoreThanManager(), args);
+    System.exit(res);
+}
+```
+这里定义了一个 main 方法，它调用 ToolRunner 类的 run 方法来运行作业。
 
 
 
@@ -1915,7 +2183,59 @@ hadoop fs -cat /class6/out4/part-r-00000
 
 23.
 
+编译并打包代码
 
+进入 /app/hadoop-1.1.2/myclass/class6 目录中新建 Q5EarnMoreThanManager.java 程序代码（代码也可以使用 /home/shiyanlou/install-pack/class6/Q5EarnMoreThanManager.java 文件）。
+
+cd /app/hadoop-1.1.2/myclass/class6
+vi Q5EarnMoreThanManager.java
+
+编译代码：
+
+javac -classpath ../../hadoop-core-1.1.2.jar:../../lib/commons-cli-1.2.jar Q5EarnMoreThanManager.java
+
+把编译好的代码打成 jar 包，如果不打成 jar 形式运行会提示 class 无法找到的错误。
+
+jar cvf ./Q5EarnMoreThanManager.jar ./Q5EarnMore*.class
+mv *.jar ../..
+rm Q5EarnMore*.class
+请详细分析一下每一句话。
+    
+    
+    好的，我会逐行解释这段代码的含义和作用。
+
+```bash
+cd /app/hadoop-1.1.2/myclass/class6
+```
+这里进入指定目录。
+
+```bash
+vi Q5EarnMoreThanManager.java
+```
+这里使用 vi 编辑器打开 QEarnMoreThanManager.java 文件。
+
+```bash
+javac -classpath ../../hadoop-core-1.1.2.jar:../../lib/commons-cli-1.2.jar Q5EarnMoreThanManager.java
+```
+这里使用 javac 命令编译 Q5EarnMoreThanManager.java 文件，并指定了类路径，其中 ../../hadoop-core-1.1.2.jar 是 Hadoop 核心库的路径，../../lib/commons-cli-1.2.jar 是 commons-cli 库的路径。
+
+```bash
+jar cvf ./Q5EarnMoreThanManager.jar ./Q5EarnMore*.
+```
+这里使用 jar 命令将编译好的 Q5EarnMoreThanManager.class 文件打包成 Q5EarnMoreThanManager.jar 文件，其中 cvf 参数表示创建、打包和指定文件名，./Q5EarnMoreThanManager.jar 表示打包的文件名，./Q5EarnMore*.class 表示要打包的文件名，* 通配符表示所有以 Q5EarnMore 开头的 class 文件。
+
+```bash
+mv *.jar ../..
+```
+这里将打包好 jar 文件移动到上一级目录。
+
+```bash
+rm Q5EarnMore*.class
+```
+这里删除编译好的 class 文件，以免占用过多磁盘空间。
+    
+    
+    
 
 
 
@@ -1924,7 +2244,50 @@ hadoop fs -cat /class6/out4/part-r-00000
 
 24.
 
+运行并查看结果
 
+运行 Q5EarnMoreThanManager 运行的员工数据路径和输出路径两个参数，需要注意的是 hdfs 的路径参数路径需要全路径，否则运行会报错：
+
+员工数据路径：hdfs://hadoop:9000/class6/input/emp。
+输出路径：hdfs://hadoop:9000/class6/out5。
+运行如下命令：
+
+cd /app/hadoop-1.1.2
+hadoop jar Q5EarnMoreThanManager.jar Q5EarnMoreThanManager hdfs://hadoop:9000/class6/input/emp hdfs://hadoop:9000/class6/out5
+运行成功后，刷新 CentOS HDFS 中的输出路径 /class6/out5 目录。
+
+hadoop fs -ls /class6/out5
+hadoop fs -cat /class6/out5/part-r-00000
+copy
+打开 part-r-00000 文件，可以看到运行结果：
+
+FORD    3000
+
+请详细分析一下每一句话。
+
+    
+    
+    好的，我会逐行解释这段代码的含义和作用。
+
+```bash
+cd /app/hadoop-1.1.2
+```
+这里进入指定目录。
+
+```bash
+hadoop jar Q5EarnMoreThanManager.jar Q5EarnMoreThanManagerdfs://hadoop:9000/class6/input/emp hdfs://hadoop:9000/class6/out5
+```
+这里使用 hadoop 命令来运行 Q5EarnMoreThanManager.jar 文件，其中 Q5EarnMoreThanManager 是程序的主类名，hdfs://hadoop:9000/class6/input/emp 是输入路径，hdfs://hadoop:9000/class6/out5 是输出路径。
+
+```bash
+hadoop fs -ls /class6/out5
+```
+这里使用 hadoop fs 命令来查看输出路径 /class6/out5 中的文件列表。
+
+```bash
+h fs -cat /class6/out5/part-r-00000
+```
+这里使用 hadoop fs 命令来查看输出路径 /class6/out5 中的 part-r-00000 文件的内容，即程序的输出结果。
 
 
 
