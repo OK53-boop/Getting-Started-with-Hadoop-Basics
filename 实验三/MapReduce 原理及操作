@@ -1,0 +1,1033 @@
+1.
+MapReduce 是现今一个非常流行的分布式计算框架，它被设计用于并行计算海量数据。第一个提出该技术框架的是 Google 公司，而 Google 的灵感则来自于函数式编程语言，如 LISP、Scheme、ML 等。
+请结合生活中的例子详细分析一下。
+
+作为一个系统工程师，我很高兴能够为您解释 MapReduce 分布式计算框架的工作原理，并提供一些生活中的例来帮助您更好地理解它。
+
+MapReduce 是一种分布式计算框架，它将大规模数据集分成小块，然在多台计算机上并行处理这些小块。MapReduce 框架由两个主要的阶段组成：Map 阶段和 Reduce 阶段。
+
+在 Map 阶段中，数据被分成小块，并在多台计算机上并行处理。每个计算机都会执行一个 Map 函数，该函数将输入数据转换为键值对。这些键值对被发送到 Reduce 阶段进行处理。
+
+在 Reduce 阶段中，Map 阶段生成的键值对被合并和排序，然后传递给 Reduce 函数进行处理。Reduce 函数将相同键的值合并在一起，并生成最终的输出结果。
+
+一个生活中的例子是搜索引擎。当您在搜索引擎中输入一个查询时，搜索引擎会将查询分成小块，并在多台计算机上并行处理这些小块。每个计算机都会执行一个 Map 函数，该函数将查询转换为键值对。这些键值对发送到 Reduce 阶段进行处理。在 Reduce 阶段中，Map 阶段生成的键值对被合并和排序，然后传递给 Reduce 函数进行处理。Reduce 函数将相同键的值合并在一起，并生成最终的搜索结果。
+
+另一个生活中的例子是社交媒体分析。当企想要了解他们在社交媒体上的声誉时，他们可以使用 MapReduce 框架来分析大量的社交媒体数据。 Map 阶段中，数据被分成小块，并在多台计算机上并行处理。每个计算机都会执行一个 Map 函数，该函数将社交媒体数据转换为键值对。这些键值对被发送到 Reduce 阶段进行处理。在 Reduce 阶段中，Map 阶段生成的键值对被合并排序，然后传递给 Reduce 函数进行处理。Reduce 函数将相同键的值合并在一起，并生成最终的社交媒体分析结果。
+
+总之，MapReduce 分布式计算框架是一种非常强大的工具，可以帮助我们处理大规模数据集。通过将数据分成小块并在多台计算机上并行处理，Map 可以大大提高数据处理的效率。
+
+
+
+
+
+
+2.
+MapReduce 框架的核心步骤主要分两部分：Map 和 Reduce。当你向 MapReduce 框架提交一个计算作业时，它会首先把计算作业拆分成若干个 Map 任务，然后分配到不同的节点上去执行，每一个 Map 任务处理输入数据中的一部分，当 Map 任务完成后，它会生成一些中间文件，这些中间文件将会作为 Reduce 任务的输入数据。Reduce 任务的主要目标就是把前面若干个 Map 的输出汇总到一起并输出。
+请结合生活中的例子详细分析一下。
+
+当我们使用 MapReduce 框架进行社交媒体分析时，我们可以将数据分成小块，并在多台计算机上并行处理。在 Map 阶段中，每个计机都会执行一个 Map 函数，该函数将社交媒体数据转换为键值对。这些键值对被发送到 Reduce 阶段进行处理。
+
+在 Reduce 阶段中，Map 阶段生成的键值对被合并和排序，然后传递给 Reduce 函数进行处理。Reduce 函数将相同键的值合并在一起，并生成最终的社交媒体分析结果。
+
+例如，我们想要分析某个品牌在社交媒体上的声誉。我们可以使用 MapReduce 框架来分析大量的交媒体数据。在 Map 阶段中，我们可以将数据分成小块，并在多台计算机上并行处理。每个计算机都会执行一个 Map 函数，该函数将社交媒体数据转换为键值对。这些键值对被发送 Reduce 阶段进行处理。
+
+在 Reduce 阶段中，Map 阶段生成的键值对被合并排序，然后传递给 Reduce 函数进行处理。Reduce 函数将相同键的值合并在一起，并生成最的社交媒体分析结果。例如，我们可以计算某个品牌在社交媒体上的提及次数、正面评价次数负面评价次数等等。
+
+总之，MapReduce 框架的核心步骤主要分两部分：Map 和 Reduce。通过将数据分成小块并在多台计算机上并行处理，Map 可以大大提高数据处理的效率。Reduce 的主要目标是把前面若干个 Map 的输出汇总到一起并输出。在生活中，我们可以使用 MapReduce 框架来处理大规模数据集，例如搜索引擎、社交媒体分析等等。
+
+
+
+
+
+3.
+Map 过程
+
+每个输入分片会让一个 map 任务来处理，默认情况下，以 HDFS 的一个块的大小（默认为 64M）为一个分片，当然我们也可以设置块的大小。map 输出的结果会暂时放在一个环形内存缓冲区中（该缓冲区的大小默认为 100M，由 io.sort.mb 属性控制），当该缓冲区快要溢出时（默认为缓冲区大小的 80%，由 io.sort.spill.percent 属性控制），会在本地文件系统中创建一个溢出文件，将该缓冲区中的数据写入这个文件。
+在写入磁盘之前，线程首先根据 reduce 任务的数目将数据划分为相同数目的分区，也就是一个 reduce 任务对应一个分区的数据。这样做是为了避免有些 reduce 任务分配到大量数据，而有些 reduce 任务却分到很少数据，甚至没有分到数据的尴尬局面。其实分区就是对数据进行 hash 的过程。然后对每个分区中的数据进行排序，如果此时设置了 Combiner，将排序后的结果进行 Combia 操作，这样做的目的是让尽可能少的数据写入到磁盘。
+当 map 任务输出最后一个记录时，可能会有很多的溢出文件，这时需要将这些文件合并。合并的过程中会不断地进行排序和 combia 操作，目的有两个：
+尽量减少每次写入磁盘的数据量
+尽量减少下一次复制阶段网络传输的数据量。最后合并成了一个已分区且已排序的文件。为了减少网络传输的数据量，这里可以将数据压缩，只要将 mapred.compress.map.out 设置为 true 就可以了。
+将分区中的数据拷贝给相对应的 reduce 任务。有人可能会问：分区中的数据怎么知道它对应的 reduce 是哪个呢？其实 map 任务一直和其父 TaskTracker 保持联系，而 TaskTracker 又一直和 JobTracker 保持心跳。所以 JobTracker 中保存了整个集群中的宏观信息。只要 reduce 任务向 JobTracker 获取对应的 map 输出位置就可以了。
+
+请结合生活中的例子详细分析一下。
+
+
+
+当我们在生活中使用 MapReduce 框架时，可以将其应用于大规模数据处理，例如搜索引擎、社交媒体分析等等。举个例子，假设我们想要分析某个城市的交通拥堵情况。我们可以使用 MapReduce架来处理大量的交通数据。
+
+在 Map 阶段中，我们可以将交通数据分成小块，并在多台计算机上并行处理每个计算机都会执行一个 Map 函数，该函数将交通数据转换为键值对。这些键值对被发送到 Reduce 阶段进行处理。
+
+在 Reduce 阶段中，Map 阶段生成的键值对被合并和排序，然后传递给 Reduce 函数进行处理。Reduce 函数将相同键的值合并在一起，并生成最的交通拥堵分析结果。例如，我们可以计算某个区域的平均车速、拥堵指数等等。
+
+总之，MapReduce 框架的核心步骤主要分两部分：Map 和 Reduce。通过将数据分成小块并在多台计算机上并行处理，Map 可以大大提高数据处理的效率。Reduce 的主要标是把前面若干个 Map 的输出汇总到一起并输出。在生活中，我们可以使用 MapReduce 框架来处理大规模数据，例如交通数据、社交媒体分析等等。
+
+
+
+
+4.
+Reduce 过程
+
+Reduce 会接收到不同 map 任务传来的数据，并且每个 map 传来的数据都是有序的。如果 reduce 端接受的数据量相当小，则直接存储在内存中（缓冲区大小由 mapred.job.shuffle.input.buffer.percent 属性控制，表示用作此用途的堆空间的百分比），如果数据量超过了该缓冲区大小的一定比例（由 mapred.job.shuffle.merge.percent 决定），则对数据合并后溢写到磁盘中。
+随着溢写文件的增多，后台线程会将它们合并成一个更大的有序的文件，这样做是为了给后面的合并节省时间。其实不管在 map 端还是 reduce 端，MapReduce 都是反复地执行排序、合并操作。
+合并的过程中会产生许多的中间文件（写入磁盘了），但 MapReduce 会让写入磁盘的数据尽可能地少，并且最后一次合并的结果并没有写入磁盘，而是直接输入到 reduce 函数。
+请结合生活中的例子详细分析一下。
+
+Reduce 过程是 MapReduce 框架中的一个重要步骤，它的主要任务是将 Map 阶段输出的键值对进行合并和排序，并生成最终的结果。在生活中，我们可以使用 MapReduce 框架来处理大规模数据，交通数据、社交媒体分析等等。
+
+举个例子，假设我们想要分析某个城市的交通拥堵情况。 Map 阶段中，我们可以将交通数据分成小块，并在多台计算机上并行处理每个计算机都会执行一个 Map 函数，该函数将交通数据转换为键值对。这些键值对被发送到 Reduce 阶段进行处理。
+
+在 Reduce 阶段中，Map 阶段生成的键值对被合并和排序，然后传递给 Reduce 函数进行处理Reduce 函数将相同键的值合并在一起，并生成最的交通拥堵分析结果。例如，我们可以计算某个区域的平均车速、拥堵指数等等。
+
+在 Reduce 过程中，如果接收到的数据量相当小，则直接存储在内存中。如果数据量超过了内存缓冲区大小的一定比例，则对数据进行合并后溢写到磁盘中。随着溢写文件的增多，后台线程会将它们合并成一个更大的有序的文件，这样做是为了给后面的合并节省时间。最后，MapReduce 框架会让写入磁盘的数据尽可能地少，并且最后一次合并的结果并没有写入磁盘，而是直接输入到 reduce 函数。
+
+总之，Reduce 过程是 MapReduce 框架中的一个重要步骤，它的主要任务是将 Map 阶段输出的键值对进行合并和排序，并生成最终的结果。在生活中，我们可以使用 MapReduce 框架来处理大规模数据，例如交通数据、社交媒体分析等等。
+
+
+
+
+
+
+5.
+MapReduce 工作机制剖析
+
+在集群中的任意一个节点提交 MapReduce 程序。
+JobClient 收到作业后，JobClient 向 JobTracker 请求获取一个 Job ID。
+将运行作业所需要的资源文件复制到 HDFS 上（包括 MapReduce 程序打包的 JAR 文件、配置文件和客户端计算所得的输入划分信息），这些文件都存放在 JobTracker 专门为该作业创建的文件夹中，文件夹名为该作业的 Job ID。
+获得作业 ID 后，提交作业。
+JobTracker 接收到作业后，将其放在一个作业队列里，等待作业调度器对其进行调度，当作业调度器根据自己的调度算法调度到该作业时，会根据输入划分信息为每个划分创建一个 map 任务，并将 map 任务分配给 TaskTracker 执行。
+对于 map 和 reduce 任务，TaskTracker 根据主机核的数量和内存的大小有固定数量的 map 槽和 reduce 槽。这里需要强调的是：map 任务不是随随便便地分配给某个 TaskTracker 的，这里有个概念叫：数据本地化（Data-Local）。意思是：将 map 任务分配给含有该 map 处理的数据块的 TaskTracker 上，同时将程序 JAR 包复制到该 TaskTracker 上来运行，这叫“运算移动，数据不移动”。
+TaskTracker 每隔一段时间会给 JobTracker 发送一个心跳，告诉 JobTracker 它依然在运行，同时心跳中还携带着很多的信息，比如当前 map 任务完成的进度等信息。当 JobTracker 收到作业的最后一个任务完成信息时，便把该作业设置成“成功”。当 JobClient 查询状态时，它将得知任务已完成，便显示一条消息给用户。
+运行的 TaskTracker 从 HDFS 中获取运行所需要的资源，这些资源包括 MapReduce 程序打包的 JAR 文件、配置文件和客户端计算所得的输入划分等信息。
+TaskTracker 获取资源后启动新的 JVM 虚拟机。
+运行每一个任务。
+请结合生活中的例子详细分析一下。
+
+
+MapReduce 是一种用于处理大规模数据的编程模型和计算框架。它的工作机制可以通过一个生活中的例子来解释。
+
+假设我们要分析某个市的交通拥堵情况。我们可以使用 MapReduce 框架来处理大规模的交通数据。在这个例子中，我们可以将交数据分成小块，并在多台计算机上并行处理。每个计算机都会执行一个 Map 函数，该函数将交通数据转换键值对。这些键值对被发送到 Reduce 阶段进行处理。
+
+在 Reduce 阶段中，Map 阶段生成的键值对被合并和排序，然后传递给 Reduce 函数进行处理。Reduce 函数将相同键的值合并在一起，并生成最终的交通拥堵分析结果。例如，我们可以计算某个区域的平均车速、拥堵指数等等。
+
+在 MapReduce 框架中，JobTracker 是一个重要的组件。它负责接收作业请求，并将作业分配给 TaskTracker 进行处理。TaskTracker 是运行在集群中的计算节点，它负责执行 Map 和 Reduce 任务。
+
+当一个提交 MapReduce 程序时，JobClient 会向 JobTracker 请求获取一个 Job ID。然后，JobTracker 会将运行作业所需要的资源文件复制到 HDFS 上，包括 MapReduce 程序打包的 JAR 文件、配置文件和客户端计算所得的输入划分信息。这些文件都放在 JobTracker 专门为该作业创建的文件夹中，文件夹名为该作业的 Job ID。
+
+接下来，JobTracker 将作业放在一个作业队列里，等待作业调度器对其进行调度。当作业调度器根据自己的调度算法调度到该作业时，会根据输入划分信息为每个划创建一个 map 任务，并将 map 任务分配给 TaskTracker 执行。对于 map 和 reduce 任务，TaskTracker 根据主机核的数量和内存大小有固定数量的 map 槽和 reduce 槽。这里需要强调的是：map 任务不是随随便便地分配给某个 TaskTracker 的，这里有个概念叫：数据本地化（Data-Local）。意思是：将 map 任务分配给含有该 map 处理的数据块的 TaskTracker 上，同时将程序 JAR 包复制到该 TaskTracker 上来运行，这叫“运算移动，数据不移动”。
+
+TaskTracker 每隔一段时间会给 JobTracker 发送一个心跳，告诉 JobTracker 它依然在运行，同时心跳中还携带着很多的信息，如当前 map 任务完成的进度等信息。当 JobTracker 收到作业的最后一个任务完成信息时，便把该作业设置成“成功”。当 JobClient 查询状态时，它将得知任务已完成，便显示一条消息给用户。
+
+总之，MapReduce 工作机制是一个分布式计算框架，它可以处理大规模数据。通过将数据分成小块并在多台计算机上并行处理，MapReduce 可以大大提高数据处理的效率。
+
+
+
+
+
+6.
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+
+public class MinTemperature {
+
+    public static void main(String[] args) throws Exception {
+        if(args.length != 2) {
+            System.err.println("Usage: MinTemperature<input path> <output path>");
+            System.exit(-1);
+        }
+
+        Job job = new Job();
+        job.setJarByClass(MinTemperature.class);
+        job.setJobName("Min temperature");
+        FileInputFormat.addInputPath(job, new Path(args[0]));
+        FileOutputFormat.setOutputPath(job, new Path(args[1]));
+        job.setMapperClass(MinTemperatureMapper.class);
+        job.setReducerClass(MinTemperatureReducer.class);
+        job.setOutputKeyClass(Text.class);
+        job.setOutputValueClass(IntWritable.class);
+        System.exit(job.waitForCompletion(true) ? 0 : 1);
+    }
+}
+请分别详细分析一下每一句代码。
+
+
+
+好的，让我来详细分析一下这段代码。
+
+```java
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+```
+
+这部分代码是导入需要使用的类。其中，`Path`、`IntWritable`、`Text`、`Job`、`FileInputFormat`、`FileOutputFormat` 分别代表 Hadoop 中的路径、整型、文本、作业、文件输入格式和文件输出格式。
+
+```java
+public class MinTemperature {
+
+    public static void main(String[] args) throws Exception {
+        if(args.length != 2) {
+            System.err.println("Usage: MinTemperature<input path> <output path>");
+            System.exit(-1);
+        }
+```
+
+这部分代码定义了一个名为 `MinTemperature` 的类，并在其中定义了一个名为 `main` 的方法`main` 方法是程序的入口点，它接收一个字符串数组作为参数。如果参数的长度不等于 2，则输出错误信息并退出程序。
+
+```java
+        Job job = new Job();
+        job.setJarByClass(MinTemperature.class);
+        job.setJobName("Min temperature");
+        FileInputFormat.addInputPath(job, new Path(args[0]));
+        FileOutputFormat.setOutputPath(job, new Path(args[1]));
+        job.setMapperClass(MinTemperatureMapper.class);
+        job.setReducerClass(MinTemperatureReducer.class);
+        job.setOutputKeyClass(Text.class);
+        job.setOutputValueClass(IntWritable.class);
+```
+
+这部分代码创建了一个新的作业对象 `job`，并设置了作业的相关属性。`setJarByClass` 方法设置了作业的主类，`setJobName` 方法设置了作业的名称，`addInputPath` 方法设置了作业的输入路径，`setMapperClass` 方法设置了作业的 Mapper 类，`setReducerClass` 方法设置了作业的 Reducer 类，`setOutputKeyClass` 方法设置了作业的输出键类型，`setOutputValueClass` 方法设置了作业的输出值类型。
+
+```java
+        System.exit(job.waitForCompletion(true) ? 0 : 1);
+    }
+}
+```
+
+这部分代码启动作业并等待其完成。`waitForCompletion` 方法启动作业并等待其完成，如果作业成功完成，则返回 true，否则返回 false。`System.exit` 方法根据作业的执行结果退出程序，如果作业成功完成，则返回 0，否则返回 1。
+
+总之，这段代码是一个简单的 Hadoop MapReduce 程序，它的作用是计算输入文件中的最低温度，并将结果输出到指定的输出文件中。程序通过创建一个作业对象，并设置作业的相关属性来实现这个功能。
+
+
+
+
+
+7.
+import java.io.IOException;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Mapper;
+
+public class MinTemperatureMapper extends Mapper<LongWritable, Text, Text, IntWritable>{
+
+    private static final int MISSING = 9999;
+
+    @Override
+    public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
+
+        String line = value.toString();
+        String year = line.substring(15, 19);
+
+        int airTemperature;
+        if(line.charAt(87) == '+') {
+            airTemperature = Integer.parseInt(line.substring(88, 92));
+        } else {
+            airTemperature = Integer.parseInt(line.substring(87, 92));
+        }
+
+        String quality = line.substring(92, 93);
+        if(airTemperature != MISSING && quality.matches("[01459]")) {
+            context.write(new Text(year), new IntWritable(airTemperature));
+        }
+    }
+}
+请分别详细分析一下每一句代码。
+
+
+好的，让我来逐行分析这段代码。
+
+```java
+import java.io.IOException;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Mapper;
+```
+
+这部分代码是导入需要使用的类。其中，`IOException`、`IntWritable`、`LongWritable`、`Text`、`Mapper` 分别代表 Java 中的输入输出异常、整型、长整型、文本和 Mapper 类。
+
+```java
+public class MinTemperatureMapper extends Mapper<LongWritable, Text, Text, IntWritable>{
+```
+
+这部分代码定义了一个名为 `MinTemperatureMapper` 的类，并继承了 Hadoop 中的 Mapper 类。`Mapper<LongWritable, Text, Text, IntWritable>` 中的四个泛型分别代表输入键类型、输入值类型、输出键类型和输出值类型。
+
+```java
+    private static final int MISSING =9999;
+```
+
+这部分代码定义了一个名为 `MISSING` 的常量，其值为 9999。
+
+```java
+    @Override
+    public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
+```
+
+这部分代码重写了 Mapper 类中的 `map` 方法，并接收三个参数：输入键、输入值和上下文对象。`IOException` 和 `InterruptedException` 是可能抛出的异常。
+
+```java
+        String line = value.toString();
+        String year = line.substring(15, 19);
+```
+
+这部分代码将输入值转换为字符串，并从中提取出年份信息。
+
+```java
+        int airTemperature;
+        if(line.charAt(87) == '+') {
+            airTemperature = Integer.parseInt(line.substring(88, 92));
+        } else {
+            airTemperature = Integer.parseInt(line.substring(87, 92));
+        }
+```
+
+这部分代码从输入值中提取出温度信息，并将其转换为整型。如果温度前面有一个加号，则从第 88 个字符开始提取，否则从第 87 个字符开始提取。
+
+```java
+        String quality = line.substring(92, 93);
+        if(airTemperature != MISSING && quality.matches("[01459]")) {
+            context.write(new Text(year), new IntWritable(airTemperature));
+        }
+```
+
+这部分代码从输入值中提取出质量信息，并判断温度是否为缺失值。如果温度不是缺失值，并且质量信息为 0、1、4、5 或 9，则将年份和温度信息写入上下文对象中。
+
+总之，这段代码是一个 Hadoop MapReduce 程序的 Mapper 类，它的作用是从输入文件中提取出年份和温度信息，并将其写入上下文对象中。程序通过重写 Mapper 类中的 `map` 方法来实现这个功能。
+
+
+
+
+
+8.
+import java.io.IOException;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Reducer;
+
+public class MinTemperatureReducer extends Reducer<Text, IntWritable, Text, IntWritable> {
+
+    @Override
+    public void reduce(Text key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException {
+
+        int minValue = Integer.MAX_VALUE;
+        for(IntWritable value : values) {
+            minValue = Math.min(minValue, value.get());
+        }
+        context.write(key, new IntWritable(minValue));
+    }
+}
+请分别详细分析一下每一句代码。
+
+
+好的，让我来逐行分析这段代码。
+
+```java
+import java.io.IOException;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Reducer;
+``这部分代码是导入需要使用的类。其中，`IOException`、`IntWritable`、`Text`、`Reducer` 分别代表 Java 中的输入输出异常、整型、文本和 Reducer 类。
+
+```java
+public class MinTemperatureReducer extends Reducer<Text, IntWritable, Text, IntWritable> {
+```
+
+这部分代码定义了一个名为 `MinTemperatureReducer` 的类，并继承了 Hadoop 中的 Reducer 类。`Reducer<Text, IntWritable, Text, IntWritable>` 中的四泛型分别代表输入键类型、输入值类型、输出键类型和输出值类型。
+
+```java
+    @Override
+    public void reduce(Text key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException {
+```
+
+这部分代码重写了 Reducer 类中的 `reduce` 方法，并接收三个参数：输入键、输入值列表和上下文对象。`IOException` 和 `InterruptedException` 是可能抛出的异常。
+
+```java
+        int minValue = Integer.MAX_VALUE;
+        for(IntWritable value : values) {
+            minValue = Math.min(minValue, value.get());
+        }
+        context.write(key, new IntWritable(minValue));
+```
+
+这部分代码定义了一个名为 `minValue` 的变量，并将其初始化为整型的最大值。然后，使用 for 循环遍历值列表，并将其中的最小值赋值给 `minValue` 变量。最后，将输入键和 `minValue` 写入上下文对象中。
+
+总之，这段代码是一个 Hadoop MapReduce 程序的 Reducer 类，它的作用是从输入值列表中找到最小值，并将其与输入键一起写入上下文对象中。程序通过重写 Reducer 类中的 `reduce` 方法来实现这个功能。
+
+
+
+
+
+9.
+配置本机主机名为 hadoop，sudo 时需要输入 shiyanlou 用户的密码。将 hadoop 添加到最后一行的末尾。
+
+sudo vim /etc/hosts
+# 将hadoop添加到最后一行的末尾，修改后类似：（使用 tab 键添加空格）
+# 172.17.2.98 f738b9456777 hadoop
+ping hadoop
+copy
+使用如下命令启动 Hadoop
+
+cd /app/hadoop-1.1.2/bin
+./start-all.sh
+jps # 查看启动的进程，确保 NameNode 和 DataNode 都有启动
+请结合生活中的例子详细分析一下。
+
+好的，让我来结合生活中的例子详细解释一下这段代码的作用。
+
+首先，我们需要了解 `/etc/hosts` 文件的作用。这个文件是一个本地 DNS 数据库，用于将主机名映射到 IP 地址。在这个文件中，每一行都包含一个 IP 地址和一个主机名，它们之间用空格或制表符分隔。当我们在终端中使用 `ping` 命令时，系统会首先查找 `/etc/hosts` 文件，以确定主机名对应的 IP 地址。
+
+在这段代码中，我们使用 `sudo vim /etc/hosts` 命令打开 `/etc/hosts` 文件，并将本机主机名设置为 `hadoop`。这样，当我们在终端中使用 `ping hadoop` 命令时，系统会将 `hadoop` 解析为本机的 IP 地址。
+
+接下来，我们使用 `./start-all.sh` 命令启动 Hadoop。这个命令会启动 Hadoop 中的所有进程，包括 NameNode、DataNode、JobTracker 和 TaskTracker。这些进程是 Hadoop 分布式文件系统和 MapReduce 任务执行的核心组件。
+
+最后，我们使用 `jps` 命令查看启动的进程。`jps` 命令会列出当前系统中所有 Java 进程的进程 ID 和进程名称。我们需要确保 NameNode 和 DataNode 都经启动，这样才能保证 Hadoop 正常工作。
+
+综上所述，这段代码的作用是在本机上启动 Hadoop，并将本机主机名设置为 `hadoop`，以便在终端中使用 `ping hadoop` 命令进行测试。这个过程类似于在家里启动家庭网络，并将自己的电脑命名为“家庭服务器”，以便在其他设备上访问和共享文件。
+
+
+
+
+
+
+10.
+编写代码
+
+进入 /app/hadoop-1.1.2/myclass 目录，在该目录中建立 MinTemperature.java、MinTemperatureMapper.java 和 MinTemperatureReducer.java 代码文件，执行命令如下：
+
+cd /app/hadoop-1.1.2/myclass/
+vi MinTemperature.java
+vi MinTemperatureMapper.java
+vi MinTemperatureReducer.java
+请详细分析一下。
+
+
+好的，让我来详细解释一下这段代码的作用。
+
+首先，我们使用 `cd` 命令进入 `/app/hadoop-1.1.2/myclass` 目录。这个目录是我们自己创建的，用于存放 Hadoop MapReduce 程序的代码文件。
+
+接下来，我们使用 `vi` 命令分别创建了三个 Java 代码文件：`MinTemperature.java、`MinTemperatureMapper.java` 和 `MinTemperatureReducer.java`。这些文件分别对应了 Hadoop MapReduce 程序的主类、Mapper 类和 Reducer 类。
+
+在这些代码文件中，我们需要实现 Hadoop MapReduce 程序的核心逻辑。具体来说，`MinTemperature.java` 文件中需要定义主类，并设置输入和输出路径；`MinTemperatureMapper.java` 文件中需要实现 Mapper 类，并将输入数据转换为键值对；`MinTemperatureReducer.java` 文件中需要实现 Reducer 类，并从输入值列表中找到最小值。
+
+上所述，这段代码的作用是在 `/app/hadoop-1.1.2/myclass` 目录中创建了三个 Java 代码文件，用于实现 Hadoop MapReduce 程序的核心逻。这个过程类似于在自己的电脑上创建一个 Java 项目，并编写主类、Mapper 类和 Reducer 类来实现特定功能。
+
+
+
+
+
+
+11.
+编译代码
+
+在 /app/hadoop-1.1.2/myclass 目录中，使用如下命令对 java 代码进行编译，为保证编译成功，加入 classpath 变量，引入 hadoop-core-1.1.2.jar 包：
+
+javac -classpath ../hadoop-core-1.1.2.jar *.java
+请详细分析一下。
+
+好的，让我来详细解释一下这段代码的作用。
+
+首先，我们使用 `cd` 命令进入 `/app/hadoop-1.1./myclass` 目录。这个目录是我们自己创建的，用于存放 Hadoop MapReduce 程序的代码文件。
+
+接下来，我们使用 `javac` 命令对该目录中的所有 Java 代码文件进行编译。为了保证编译成功，我们需要设置 `classpath` 变量，并引入 `hadoop-core-1.1.2.jar` 包。`classpath` 变量用于指定 Java 编译器在编译时查找类和资源文件的路径。在这里，我们将 `hadoop-1.1.2.jar` 包的路径添加到了 `classpath` 变量中，以便编译器能够找到 Hadoop 相关的类和资源文件。
+
+编译成功后，我们会在当前目录中生成相应的 `.class` 文件，这些文件包含了编译后的 Java 字节码。这些字节码文件可以被 Hadoop MapReduce 框架加载和执行，从而实现我们编写的 MapReduce序的功能。
+
+综上所述，这段代码的作用是在 `/app/hadoop-1.1.2/myclass` 目录中对 Java 代码进行编译，并将 `hadoop-core-1.1.2.jar` 包添加到 `classpath` 变量中以保证编译成功。这个过程类似于在自己的电脑上使用 Java 编译器对 Java 代码进行编译，并将相关的类和资源文件添加到 `classpath` 变量中以保证编译成功。
+
+
+
+
+
+
+12.
+打包编译文件
+
+把编译好的 class 文件打包，否则在执行过程会发生错误。把打好的包移动到上级目录并删除编译好的 class 文件：
+
+jar cvf ./MinTemperature.jar ./Min*.class
+mv *.jar ..
+rm Min*.class
+请详细分析一下。
+
+好的，让我来详细解释一下这段代码的作用。
+
+首先，我们使用 `jar` 命令将编译好的 `.class` 文件打包一个 JAR 文件。在这里，我们将 JAR 文件命名为 `MinTemperature.jar`，并将所有以 `Min` 开头的 `.class` 文件添加到 JAR 文件中。JAR 文件是 Java 的一种打包格式，可以将多个 Java 类文件打包成一个文件，方便在其他地方进行部署和使用。
+
+接下来，我们使用 `mv` 命令将打包好的 JAR 文件移动到上级目录。这个目录通常是 Hadoop 集群的某个节点上的某个目录，用于存放 MapReduce 程序的 JAR 文件。
+
+最后，我们使用 `rm` 命令删除当前目录中所有以 `Min` 开头的 `.class` 文件。这些文件已经被打包到 JAR 文件中，不再需要保留。
+
+综上所述，这段代码的作用是将编译好的 Java 类文件打包成一个 JAR 文件，并将 JAR 文件移动到上级目录中。这个过程类似于在自己的电脑上将 Java 项目打包成 JAR 文件，并将 JAR 文件移动到其他地方进行部署和使用。
+
+
+
+
+
+13.
+解压气象数据并上传到 HDFS 中
+
+气象数据在 /home/shiyanlou/install-pack/class5/temperature 子目录下。
+
+把 NCDC 气象数据解压，并使用 zcat 命令把这些数据文件解压并合并到一个 temperature.txt 文件中。
+
+cd /home/shiyanlou/install-pack/class5/temperature
+zcat *.gz > temperature.txt
+tail temperature.txt
+气象数据具体的下载地址为 ftp://ftp3.ncdc.noaa.gov/pub/data/noaa/，该数据包括 1900 年到现在所有年份的气象数据，大小大概有 70 多个 G。为了测试简单，我们这里选取一部分的数据进行测试。合并后把这个文件上传到 HDFS 文件系统的 /class5/in 目录中：
+
+hadoop fs -mkdir -p /class5/in
+hadoop fs -copyFromLocal temperature.txt /class5/in
+hadoop fs -ls /class5/in
+请详细分析一下。
+
+
+
+好的，让我来详细解释一下这段代码的作用。
+
+首先，我们使用 `cd` 命令进入气象数据所在的目录 `/home/shiyanlou/install-pack/class5/temperature`。
+
+接下来，我们使用 `zcat` 命令将该目录下所有以 `.gz` 结尾的文件解压，并将解压后的内容合并到一个名为 `temperature.txt` 的文件中。`zcat` 命令可以将压缩文件解压并输出到标准输出流中，我们使用 `>` 将标准输出流中的内容重定向到 `temperature.txt` 文件中。
+
+然后，我们使用 `tail` 命令查看 `temperature.txt` 文件的最后几行，以确保文件已经成功合并。
+
+接下来，我们使用 `hadoop fs` 命令创建一个名为 `/class5/in` 的目录，并使用 `copyFromLocal` 命令将本地的 `temperature.txt` 文件上传到 HDFS 文件系统中的 `/class5/in` 目录中。`hadoop` 命令是 Hadoop 提供的一个用于操作 HDFS 文件系统的命令行工具，`-mkdir -p` 参数用于创建目录，`-copyFromLocal` 参数用于将本地文件上传到 HDFS 文件系统中。
+
+最后，我们使用 `hadoop fs -ls` 命查看 `/class5/in` 目录中的文件列表，以确保文件已经成功上传到 HDFS 文件系统中。
+
+综上所述，这段代码的作用是将气数据解压并合并到一个文件中，然后将该文件上传到 HDFS 文件系统中的 `/class5/in` 目录中。这个过程类似于在自己的电脑上文件解压并合并到一个文件中，然后将该文件上传到远程服务器上的某个目录中。
+
+
+
+
+
+14.
+运行程序
+
+以 jar 的方式启动 MapReduce 任务，执行输出目录为 /class5/out：
+
+cd /app/hadoop-1.1.2
+hadoop jar MinTemperature.jar MinTemperature /class5/in/temperature.txt  /class5/out
+请详细分析一下。
+
+好的，让我来详细解释一下这段代码的作用。
+
+首先，我们使用 `cd` 命令进入 Hadoop 的安装目录 `/app/hadoop-1.1.2`。
+
+接下来，我们使用 `hadoop jar` 命令启动一个 MapReduce 任务。`hadoop jar` 命令用于在 Hadoop 集群上运行 Java 程序，其中第一个参数 `MinTemperature.jar` 是要运行的 Java 程序的 JAR 文件，第二个参数 `MinTemperature` 是 Java 程序的主类名，第三个参数 `/class5/in/temperature.txt` 是输入数据的路径，第四个参数 `/class5/out` 是输出数据的路径。
+
+在这里，我们运行的是一个名为 `MinTemperature` 的 Java 程序，该程序的作用是从输入数据中提取气象数据，并计算每个气象站的最低温度。程序的输入数据是 `/class5/in/temperature.txt` 文件，输出数据将会被写入到 `/class5/out`录中。
+
+综上所述，这段代码的作用是在 Hadoop 集群上启动一个 MapReduce 任务，运行名为 `MinTemperature` 的 Java 程序，从输入数据中提取气象数据，并计算每个气象站的最低温度，最后将结果写入到 `/class5/out` 目录中。
+
+
+
+
+
+
+15.
+查看结果
+
+执行成功后，查看 /class5/out 目录中是否存在运行结果，使用 cat 查看结果（温度需要除以 10）：
+
+hadoop fs -ls /class5/out
+hadoop fs -cat /class5/out/part-r-00000
+查看页面结果（由于实验楼环境是命令行界面，以下仅为说明运行过程和结果可以通过界面进行查看）
+
+查看 jobtracker.jsp。
+http://XX.XXX.XX.XXX:50030/jobtracker.jsp
+查看已经完成的作业任务：
+
+任务的详细信息：
+查看 dfshealth.jsp。
+http://XX.XXX.XX.XXX:50070/dfshealth.jsp
+分别查看 HDFS 文件系统和日志：
+请详细分析一下。
+
+
+好的，让我来详细解释一下这段代码的作用。
+
+首先，我们使用 `hadoop fs -ls` 命令查看 HDFS 文件系统中 `/class5/out` 目录中的文件列表，以确保 Map 任务已经成功执行并将结果写入到该目录中。
+
+接下来，我们使用 `hadoop fs -cat` 命令查看 `/class5/part-r-00000` 文件的内容，该文件是 MapReduce 任务的输出结果。由于该文件中的温度是以 0.1 摄氏度为单位存储的，因此我们需要将结果除以 10 才能得到实际的温度值。
+
+然后，我们可以通过访问 `://XX.XXX.XX.XXX:50030/jobtracker.jsp` 来查看 Hadoop 的 JobTracker 页面，该页面可以显示当前正在运行的 MapReduce 任务的详细信息，包括任务的状态、进度、输入输出路径等。
+
+接下来，我们可以在 JobTracker 页面上查看已经完成的作业任务，以及任务的详细信息，包括任务的输入输出路径、Mapper 和 Reducer 的数量、任务的状态等。
+
+最后，我们可以通过访问 `http://XX.XXX.XX.XXX:50070/dfshealth.jsp` 来查看 HDFS 文件系统的状态，该页面可以显示 HDFS 文件系统的容量、使用情况、节点状态等信息。我们还可以在该页面上查看 HDFS 文件系统中的文件列表、文件的副本数量、块大小等信息，以及查看 HDFS 的日志信息。
+
+综上所述，这段代码的作用是查看 MapReduce 任务的执行结果、查看任务的详细信息、查看 HDFS 文件系统的状态和日志信息，以便我们对任务的执行情况进行监控和调试。
+
+
+
+
+
+
+16.
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+
+public class AvgTemperature {
+
+    public static void main(String[] args) throws Exception {
+
+        if(args.length != 2) {
+            System.out.println("Usage: AvgTemperatrue <input path><output path>");
+            System.exit(-1);
+        }
+
+        Job job = new Job();
+        job.setJarByClass(AvgTemperature.class);
+        job.setJobName("Avg Temperature");
+        FileInputFormat.addInputPath(job, new Path(args[0]));
+        FileOutputFormat.setOutputPath(job, new Path(args[1]));
+
+        job.setMapperClass(AvgTemperatureMapper.class);
+        job.setCombinerClass(AvgTemperatureCombiner.class);
+        job.setReducerClass(AvgTemperatureReducer.class);
+
+        job.setMapOutputKeyClass(Text.class);
+        job.setMapOutputValueClass(Text.class);
+
+        job.setOutputKeyClass(Text.class);
+        job.setOutputValueClass(IntWritable.class);
+
+        System.exit(job.waitForCompletion(true) ? 0 : 1);
+    }
+}
+请分别详细分析一下每一句代码。
+
+
+好的，让我来逐行解释一下这段代码的作用。
+
+```java
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.Text;
+import org.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+```
+
+这部分代码是导入需要使用的 Hadoop 类库。
+
+```java
+public class AvgTemperature {
+
+    public static void main(String[] args) throws Exception {
+
+        if(args.length != 2) {
+            System.out.println("Usage: AvgTemperatrue <input path><output path>");
+            System.exit(-1);
+        }
+```
+
+这部分代码定义了一个名为 `AvgTemperature` 的类，并在其中定义了一个名为 `main 的方法。该方法接受一个字符串数组 `args` 作为参数，并抛出一个 `Exception` 异常。
+
+在 `main` 方法中，首先使用 `if` 语句检查传递给程序的参数数量是否为 2，如果不是，则输出说明并退出程序。
+
+```java
+        Job job = new Job();
+        job.setJarByClass(AvgTemperature.class);
+        job.setJobName("Avg Temperature");
+        FileInputFormat.addInputPath(job, new Path(args[0]));
+        FileOutputFormat.setOutputPath(job, new Path(args[1]));
+```
+
+这部分代码创建了一个名为 `job` 的 `Job` 对象，并设置了该对象的属性。其中，`setJarByClass` 方法设置了作业的主类，`setJobName` 方法设置了作业的名称，`addInputPath` 方法设置了输入路径，`setOutputPath` 方法设置了输出路径。
+
+```java
+        job.setMapperClass(AvgTemperatureMapper.class);
+        job.setCombinerClass(AvgTemperatureCombiner.class);
+        job.setReducerClass(AvgTemperatureReducer.class);
+
+        job.setMapOutputKeyClass(Text.class);
+        job.setMapOutputValueClass(Text.class);
+
+        job.setOutputKeyClass(Text.class);
+        job.setOutputValueClass(IntWritable.class);
+```
+
+这部分代码设置了作业的 Mapper、Combiner 和 Reducer 类，以及输入输出键值对的类型。
+
+```java
+        System.exit(job.waitForCompletion(true) ? 0 : 1);
+    }
+}
+```
+
+这部分代码启动了作业并等待其完成。如果作业执行成功，则返回 0，否则返回 1。
+
+综上所述，这段代码的作用是创建一个 MapReduce 作业，并设置作业的输入输出路径、Mapper、Combiner 和 Reducer 类，以及输入输出键值对的类型。最后，启动作业并等待其完成。
+
+
+
+
+
+17.
+
+
+
+
+
+
+
+18.
+
+
+
+
+
+
+
+19.
+import java.io.IOException;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Mapper;
+
+public class AvgTemperatureMapper extends Mapper<LongWritable, Text, Text, Text> {
+
+    private static final int MISSING = 9999;
+
+    @Override
+    public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException{
+
+        String line = value.toString();
+        String year = line.substring(15, 19);
+
+        int airTemperature;
+        if(line.charAt(87) == '+') {
+            airTemperature = Integer.parseInt(line.substring(88, 92));
+        } else {
+            airTemperature =  Integer.parseInt(line.substring(87, 92));
+        }
+
+        String quality = line.substring(92, 93);
+        if(airTemperature != MISSING && !quality.matches("[01459]")) {
+            context.write(new Text(year), new Text(String.valueOf(airTemperature)));
+        }
+    }
+}
+请分别详细分析一下每一句代码。
+
+好的，让我来逐行解释一下这段代码的作用。
+
+```java
+import java.io.IOException;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Mapper;
+
+public class AvgTemperatureMapper extends Mapper<LongWritable, Text, Text, Text> {
+
+    private static final int MISSING = 9999;
+
+    @Override
+    public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException{
+
+        String line = value.toString();
+        String year = line.substring(15, 19);
+```
+
+这部分代码定义了一个名为 `AvgTemperatureMapper` 的类，并继承了 Hadoop 的 `Mapper` 类。该类的泛型参数 `LongWritable`、`Text`、`Text` 和 `Text`，表示输入键值对的键类型为 `LongWritable`，值类型为 `Text`，输出键值对的键类型为 `Text`，值类型为 `Text`。
+
+在 `map` 方法中，先将输入的 `Text` 类型的值转换为字符串类型，并从中提取出年份信息。
+
+```java
+        int airTemperature;
+        if(line.charAt(87) == '+') {
+            airTemperature = Integer.parseInt(line.substring(88, 92));
+        } else {
+            airTemperature =  Integer.parseInt(line.substring(87, 92));
+        }
+```
+
+这部分代码从输入的字符串中提取出温度信息，并将其转换为整型。其中，如果温度前面有一个加号，则从第 88 个字符开始提取，否则从第 87 个字符开始提取。
+
+```java
+        String quality = line.substring(92, 93);
+        if(airTemperature != MISSING && !quality.matches("[01459]")) {
+            context.write(new Text(year), new Text(String.valueOf(airTemperature)));
+        }
+    }
+}
+```
+
+这部分代码从输入的字符串中提取出质量信息，并判断温度是否为缺失值（9999），以及质量是否为有效值（0、1、4、5、9）。如果温度和质量都有效，则将年份和温度信息作为输出的键值对写入上下文中。
+
+综上所述，这段代码的作用是将输入的气象数据中的年份和温度信息提取出来，并将有效的年份和温度信息作为键值对写入上下文中。
+
+
+
+
+
+
+
+20.
+import java.io.IOException;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Reducer;
+
+public class AvgTemperatureCombiner extends Reducer<Text, Text, Text, Text>{
+
+    @Override
+    public void reduce(Text key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
+
+        double sumValue = 0;
+        long numValue = 0;
+
+        for(Text value : values) {
+            sumValue += Double.parseDouble(value.toString());
+            numValue ++;
+        }
+
+        context.write(key, new Text(String.valueOf(sumValue) + ',' + String.valueOf(numValue)));
+    }
+}
+请分别详细分析一下每一句代码。
+
+好的，让我来逐行解释一下这段代码的作用。
+
+```java
+import java.io.IOException;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Reducer;
+
+public class AvgTemperatureCombiner extends Reducer<Text,, Text, Text>{
+
+    @Override
+    public void reduce(Text key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
+
+        double sumValue = 0;
+        long numValue = 0;
+
+        for(Text value : values) {
+            sumValue += Double.parseDouble(value.toString());
+            numValue ++;
+        }
+
+        context.write(key, new Text(String.valueOf(sumValue) + ',' + String.valueOf(numValue)));
+    }
+}
+```
+
+这段代码定义了一个名为 `AvgTemperatureCombiner` 的类，并继承了 Hadoop 的 `Reducer` 类。该类的泛型参数 `Text`、`Text`、`Text` 和 `Text`，表示输入键值对的键类型为 `Text`，值类型为 `Text`，输出键值对的键为 `Text`，值类型为 `Text`。
+
+在 `reduce` 方法中，对于每个输入的键值对，将其值转换为 `double` 类型，并累加到 `sumValue` 变量中，同时将值的数量累加到 `numValue` 变量中。
+
+最后，将累加后的 `sumValue` 和 `numValue 以逗号分隔的形式写入上下文中，作为输出的值。这样做的目的是为了在后续的计算中，方便地将这两个值提取出来进行平均数的计算。
+
+综上所述，这段代码的作用是对输入的键值对的值进行累加，并将累后的结果以逗号分隔的形式写入上下文中。
+
+
+
+
+
+
+
+
+21.
+import java.io.IOException;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Reducer;
+
+public class AvgTemperatureReducer extends Reducer<Text, Text, Text, IntWritable>{
+
+    @Override
+    public void reduce(Text key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
+
+        double sumValue = 0;
+        long numValue = 0;
+        int avgValue = 0;
+
+        for(Text value : values) {
+            String[] valueAll = value.toString().split(",");
+            sumValue += Double.parseDouble(valueAll[0]);
+            numValue += Integer.parseInt(valueAll[1]);
+        }
+
+        avgValue  = (int)(sumValue/numValue);
+        context.write(key, new IntWritable(avgValue));
+    }
+}
+请分别详细分析一下每一句代码。
+
+
+好的，让我来逐行解释一下这段代码的作用。
+
+```java
+import java.io.IOException;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Reducer;
+
+public class AvgTemperatureReducer extends Reducer<Text, Text, Text, IntWritable>{
+
+    @Override
+    public void reduce(Text key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
+
+        double sumValue = 0;
+        long numValue = 0;
+        int avgValue = 0;
+
+        for(Text value : values) {
+            String[] valueAll = value.toString().split(",");
+            sumValue += Double.parseDouble(valueAll[0]);
+            numValue += Integer.parseInt(valueAll[1]);
+        }
+
+        avgValue  = (int)(sumValue/numValue);
+        context.write(key, new IntWritable(avgValue));
+    }
+}
+```
+
+段代码定义了一个名为 `AvgTemperatureReducer` 的类，并继承了 Hadoop 的 `Reducer` 类。该类的泛型参数 `Text`、`Text`、`Text` 和IntWritable`，表示输入键值对的键类型为 `Text`，值类型为 `Text`，输出键值对的键为 `Text`，值类型为 `IntWritable`。
+
+在 `reduce` 方法中，对于每个输入的键值对，将其值按逗号分隔，并将第一个部转换为 `double` 类型，第二个部分转换为 `long` 类型，并分别累加到 `sumValue` 和 `numValue`量中。
+
+最后，将 `sumValue` 除以 `numValue` 得到平均值，并将其转换为整型，作为输出的值。将键和值作为键值对写入上下文中。
+
+综上述，这段代码的作用是对输入的键值对的值进行平均数的计算，并将计算结果作为输出的值写入上下文中。
+
+
+
+
+
+
+
+
+22.
+编写代码
+
+进入 /app/hadoop-1.1.2/myclass 目录，在该目录中建立 AvgTemperature.java、AvgTemperatureMapper.java、AvgTemperatureCombiner.java 和AvgTemperatureReducer.java 代码文件，代码内容已在前面列出，执行命令如下：
+
+cd /app/hadoop-1.1.2/myclass/
+vi AvgTemperature.java
+vi AvgTemperatureMapper.java
+vi AvgTemperatureCombiner.java
+vi AvgTemperatureReducer.java
+请详细分析一下。
+
+这段代码的作用是在 Hadoop 的文件系统中进入 `/app/hadoop-1.1.2/myclass` 目录，并在该目录下创建四个 Java 代码文件分别为 `AvgTemperature.java`、`AvgTemperatureMapper.java`、`AvgTemperatureCombiner.java` 和 `AvgTemperatureReducer.java`。
+
+其中，`cd` 命令用于进入指定目录，`vi` 命令用于创建或编辑文件。在这四个 Java 代码文件中，分别实现了 Hadoop MapReduce 模型中的主类、Mapper 类、Combiner 类和 Reducer 类，用于计算气象数据的平均度。
+
+具体来说，`AvgTemperature.java` 是主类，用于指定输入和输出路径，并设置 MapReduce 作业的相关参数；`AvgTemperatureMapper.java` 是 Mapper 类，用于将输入的气象数据按照年份作为键，温度值作为值进行映射；`AvgTemperatureCombiner.java` 是 Combiner 类，用于对 Mapper 输出的键值对进行合并，以便在 Reducer 阶段进行更高效的计算；`AvgTemperatureReducer.java` 是 Reducer 类，用于对 Combiner 输出的键值对进行计算，得到每个年份的平均温度，并将结果输出到文件系统中。
+
+综上所述，这段代码的作用是在 Hadoop 的文件系统中创建四个 Java 代码文件，用于实现气象数据的平均温度计算。
+
+
+
+
+
+
+
+23.
+编译代码
+
+在 /app/hadoop-1.1.2/myclass 目录中，使用如下命令对 java 代码进行编译，为保证编译成功，加入 classpath 变量，引入 hadoop-core-1.1.2.jar 包：
+
+javac -classpath ../hadoop-core-1.1.2.jar Avg*.java
+请详细分析一下。
+
+这段代码的作用是在 Hadoop 的文件系统中进入 `/app/hadoop-1.1.2/myclass` 目录，并使用 `javac` 命令对该目录下的所有以 `Avg` 开头的 Java 代码文件进行编译。
+
+为了保证编译，使用了 `-classpath` 参数指定了编译时需要引入的类路径，即 `../hadoop-core-1.1.2.jar` 包。该是 Hadoop 的核心库，包含了 Hadoop MapReduce 模型的相关类和接口，以及 Hadoop 分布式文件系统的相关类和接口。
+
+在编译过程中，Java 编译器会将 Java 代码文件编译成字节码文件（即 `.class` 文件），并将这些文件保存在与源代码文件相同的目录中。这些字节码文件可以被 Java 虚拟机（JVM）加载和执行，从而实现对应的功能。
+
+综上所述，这段代码的作用是在 Hadoop 的文件系统中对指定目录下的 Java 代码文件进行编译，并将编译后的字节码文件保存在相同的目中，以便后续的执行。
+
+
+
+
+
+
+
+24.
+打包编译文件
+
+把编译好的 class 文件打包，否则在执行过程中会发生错误。把打好的包移动到上级目录并删除编译好的 class 文件：
+
+jar cvf ./AvgTemperature.jar ./Avg*.class
+ls
+mv *.jar ..
+rm Avg*.class
+请详细分析一下。
+
+这段代码的作用是将编译好的 Java 代码文件打包成一个 JAR 文件，并将 JAR 文件移动到上级目录中，最后删除译好的 `.class` 文件。
+
+具体来说，`jar` 命令用于创建和管理 JAR 文件，其中 `-cvf` 参数表示创建一个新 JAR 文件，并将指定的文件添加到其中。在这里，使用 `./AvgTemperature.jar` 指定了要创建的 JAR 文件名，并使用 `./Avg*.class` 指定了要添加到 JAR 文件中的文件名模式，即所有以 `Avg` 开头的 `.class` 文件。
+
+接着，使用 `ls` 命令列出当前目录下文件，以便确认 JAR 文件和 `.class` 文件是否已经被正确创建和删除。
+
+然后，使用 `mv` 命令将 JAR 文件移动到上级目录中，以便后续的执行。最后，使用 `rm` 命令删除当前目录下所有以 `Avg` 开头的 `.class` 文件，以避免在执行过程中发生错误。
+
+综上所述，这段代码的作用是将编译好的 Java 代码文件打包成一个 JAR 文件，并将 JAR 文件移动到上级目录中，最后删除编译好的 `.class` 文件，以便后续的执行。
+
+
+
+
+
+
+
+25.
+运行程序
+
+数据使用作业 2 求每年最低温度的气象数据，数据在 HDFS 位置为 /class5/in/temperature.txt，以 jar 的方式启动 MapReduce 任务，执行输出目录为 /class5/out2：
+
+cd /app/hadoop-1.1.2
+hadoop jar AvgTemperature.jar AvgTemperature /class5/in/temperature.txt /class5/out2
+请详细分析一下。
+
+这段代码的作用是在 Hadoop 分布式计算框架中运行一个 MapReduce 任务，该任务的目的是计算气象数据中每年的平均温，并将结果输出到指定的目录中。
+
+具体来说，`cd` 命令用于进入 Hadoop 的安装目录，以便后续执行 Hadoop 相关命令。然后，使用 `hadoop jar` 命令启动一个 MapReduce 任务，其中 `AvgTemperature.jar` 是之前打包好的 JAR 文件，`AvgTemperature` 是 MapReduce 任务的主类名，`/class5/in/temperature.txt` 是输入数据的路径，`/class5/out2` 是输出结果的路径。
+
+在执行过程中，Hadoop 会自动将输入数据分割成多个小块，并将这些小块分配给不同的计算节点进行处理。每个计算节点会执行 Map 和 Reduce 两个阶段的计算，并将最终结果输出到指定的目录中。
+
+综上所述，这段代码作用是在 Hadoop 分布式计算框架中运行一个 MapReduce 任务，该任务的目的是计算气象数据中每年的平均温度，并将结果输出到指定的目录中。
+
+
+
+
+
+
+
+
+26.
+查看结果
+
+执行成功后，查看 /class5/out2 目录中是否存在运行结果，使用 cat 查看结果（温度需要除以 10）：
+
+hadoop fs -ls /class5/out2
+hadoop fs -cat /class5/out2/part-r-00000
+请详细分析一下。
+
+这段代码的作用是在 Hadoop 分布式计算框架中查看 MapReduce 任务的运行结果，具体来说，它会列出指定目录下的文件列表，并使用 `cat`令查看结果文件的内容。
+
+首先，使用 `hadoop fs -ls` 命令列出 `/class5/out2` 目录下的文件列表，以确认 MapReduce 任务是否已经成功执行并输出结果。如果任务执行成功，应该会看到一个或多个以 `part-r-` 开头的文件，这些文件包含了计算结果的详细信息。
+
+接着，使用 `hadoop fs -cat` 命令查看 `part-r-00000` 文件的内容，以便查计算结果。由于温度需要除以 10，因此需要对结果进行相应的处理，以得到正确的平均温度值。
+
+综上所述，这段代码的作用是在 Hadoop 分布式计算框架中查看 MapReduce 任务的运行结果，包括列出指定目录下的文件列表和查看结果文件的内容。
+
+
+
+
