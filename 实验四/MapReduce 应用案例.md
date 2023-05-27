@@ -2295,7 +2295,22 @@ h fs -cat /class6/out5/part-r-00000
 
 
 25.
+问题分析
 
+求工资比公司平均工资要高的员工姓名及工资，需要得到公司的平均工资和所有员工工资，通过比较得出工资比平均工资高的员工姓名及工资。这个问题可以分两个作业进行解决，先求出公司的平均工资，然后与所有员工进行比较得到结果。也可以在一个作业进行解决，这里就得使用作业 setNumReduceTasks 方法，设置 Reduce 任务数为 1，保证每次运行一个 reduce 任务，从而能先求出平均工资，然后进行比较得出结果。
+
+在 Mapper 阶段输出两份所有员工数据，其中一份 key 为 0、value 为该员工工资，另外一份 key 为 0、value 为"该员工姓名，员工工资"。然后在 Shuffle 阶段把传过来数据按照 key 进行归组，在该任务中有 key 值为 0 和 1 两组数据。最后在 Reduce 中对 key 值 0 的所有员工求工资总数和员工数，获得平均工资。对 key 值 1，比较员工与平均工资的大小，输出比平均工资高的员工和对应的工资。
+请详细分析一下。
+    
+    这是一个典型的 MapReduce 问题，需要使用 Hadoop 或其他分布式计算框架进行处理。该问题需要分两个阶段进行解决，第一阶段是求出公司的平均工资，第二阶段是比较每个工的工资与平均工资的大小，输出工资比平均工资高的员工姓名及工资。
+
+在 Mapper 阶段，需要输出两数据，一份是 key 为 0、value 为该员工工资，另一份是 key 为 0、value 为"该员工姓名，员工工资"。这样可以在 Shuffle 阶段将数据按照 key 进行归组，方便在 Reduce 阶段进行处理。
+
+在 Shuffle 阶段，传过来的数据会按照 key 进行归组，这里有两组数据，key 值为 0 和 1。对于 key 值为 0 的数据，需要对所有员工的工资进行求和，并统计员工数，从而得到公司的平均工资。对于 key 值为 1 的数据，需要比较员工的工资与平均工资的大小，输出工资比平均工资高的员工姓名及工资。
+
+了保证每次运行一个 reduce 任务，可以使用 setNumReduceTasks 方法，设置 Reduce 任务数为 1。这样可以保证先求出均工资，然后再进行比较得出结果。
+
+总之，该问题需要使用 MapReduce 模型进行处理，分两个阶段进行解决，需要在 Mapper 阶段输出两份数据，在 Shuffle 阶段按照 key 进行归组，在 Reduce 阶段对 key 值为 0 的数据求出平均工资，在对 key 值为 1 的数据进行比较，输出工资比平均工资高的员工姓名及工资。
 
 
 
@@ -2305,7 +2320,293 @@ h fs -cat /class6/out5/part-r-00000
 
 26.
 
+import java.io.IOException;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.conf.Configured;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
+import org.apache.hadoop.util.GenericOptionsParser;
+import org.apache.hadoop.util.Tool;
+import org.apache.hadoop.util.ToolRunner;
 
+public class Q6HigherThanAveSalary extends Configured implements Tool {
+
+    public static class MapClass extends Mapper<LongWritable, Text, IntWritable, Text> {
+
+        public void map(LongWritable key, Text value, Context context) throws IOException,         InterruptedException {
+
+            // 对员工文件字段进行拆分
+            String[] kv = value.toString().split(",");
+
+            // 获取所有员工数据，其中key为0和value为该员工工资
+            context.write(new IntWritable(0), new Text(kv[5]));
+
+            // 获取所有员工数据，其中key为0和value为(该员工姓名 ,员工工资)
+            context.write(new IntWritable(1), new Text(kv[1] + "," + kv[5]));
+        }
+    }
+
+    public static class Reduce extends Reducer<IntWritable, Text, Text, Text> {
+
+        // 定义员工工资、员工数和平均工资
+        private long allSalary = 0;
+        private int allEmpCount = 0;
+        private long aveSalary = 0;
+
+        // 定义员工工资变量
+        private long empSalary = 0;
+
+        public void reduce(IntWritable key, Iterable<Text> values, Context context) throws         IOException, InterruptedException {
+
+            for (Text val : values) {
+                if (0 == key.get()) {
+                    // 获取所有员工工资和员工数
+                    allSalary += Long.parseLong(val.toString());
+                    allEmpCount++;
+                    System.out.println("allEmpCount = " + allEmpCount);
+                } else if (1 == key.get()) {
+                    if (aveSalary == 0) {
+                        aveSalary = allSalary / allEmpCount;
+                        context.write(new Text("Average Salary = "), new Text("" + aveSalary));
+                        context.write(new Text("Following employees have salarys higher than                         Average:"), new Text(""));
+                    }
+
+                    // 获取员工的平均工资
+                    System.out.println("Employee salary = " + val.toString());
+                    aveSalary = allSalary / allEmpCount;
+
+                    // 比较员工与平均工资的大小，输出比平均工资高的员工和对应的工资
+                    empSalary = Long.parseLong(val.toString().split(",")[1]);
+                    if (empSalary > aveSalary) {
+                        context.write(new Text(val.toString().split(",")[0]), new Text("" +                         empSalary));
+                    }
+                }
+            }
+        }
+    }
+
+    @Override
+    public int run(String[] args) throws Exception {
+
+        // 实例化作业对象，设置作业名称
+        Job job = new Job(getConf(), "Q6HigherThanAveSalary");
+        job.setJobName("Q6HigherThanAveSalary");
+
+        // 设置Mapper和Reduce类
+        job.setJarByClass(Q6HigherThanAveSalary.class);
+        job.setMapperClass(MapClass.class);
+        job.setReducerClass(Reduce.class);
+
+        // 必须设置Reduce任务数为1 # -D mapred.reduce.tasks = 1
+        // 这是该作业设置的核心，这样才能够保证各reduce是串行的
+        job.setNumReduceTasks(1);
+
+        // 设置输出格式类
+        job.setMapOutputKeyClass(IntWritable.class);
+        job.setMapOutputValueClass(Text.class);
+
+        // 设置输出键和值类型
+        job.setOutputFormatClass(TextOutputFormat.class);
+        job.setOutputKeyClass(Text.class);
+        job.setOutputValueClass(LongWritable.class);
+
+        // 第1个参数为员工数据路径和第2个参数为输出路径
+String[] otherArgs = new GenericOptionsParser(job.getConfiguration(), args).getRemainingArgs();
+        FileInputFormat.addInputPath(job, new Path(otherArgs[0]));
+        FileOutputFormat.setOutputPath(job, new Path(otherArgs[1]));
+
+        job.waitForCompletion(true);
+        return job.isSuccessful() ? 0 : 1;
+    }
+
+    /**
+     * 主方法，执行入口
+     * @param args 输入参数
+     */
+    public static void main(String[] args) throws Exception {
+        int res = ToolRunner.run(new Configuration(), new Q6HigherThanAveSalary(), args);
+        System.exit(res);
+    }
+}
+请详细分析一下每一句代码。
+    
+    
+    好的，我会逐行解释每一句代码的作用。
+
+```java
+import java.io.IOException;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.conf.Configured;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
+import org.apache.hadoop.util.GenericOptionsParser;
+import org.apache.hadoop.util.Tool;
+import org.apache.hadoop.util.ToolRunner;
+```
+
+这部分代码是导入所需的 Java 类库。
+
+```java
+public class Q6HigherThanAveSalary extends Configured implements Tool {
+```
+
+这里定义了一个名为 Q6HigherThanAveSalary 的类，该类继承了 Configured 类并实现了 Tool 接口。
+
+```java
+public static class MapClass extends Mapper<LongWritable, Text, IntWritable, Text> {
+```
+
+这里定义了一个名为 MapClass 的静态内部类，该类继承了 Mapper 类，并指定了输入键、输入值、输出键和输出值的类型。
+
+```java
+public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
+```
+
+这里定义了一个名为 map 的方法，该方法是 Mapper 类的一个抽象方法，需要在子类中现。该方法的作用是将输入数据转换为键值对。
+
+```java
+String[] kv = value.toString().split(",");
+```
+
+这里将输入的文本数据按照逗号进行拆分，得到一个字符串数组。
+
+```java
+context.write(new IntWritable(0), new Text(kv[5]));
+```
+
+这里将员工工资作为 value，key 为 0，输出到 Reduce 阶段。
+
+```java
+context.write(new IntWritable(1), new Text(kv[1] + "," + kv[5]));
+```
+
+这里将员工姓名和工资作为 value，key 为 1，输出到 Reduce 阶段。
+
+```java
+public static class Reduce extends Reducer<IntWritable, Text, Text, Text> {
+```
+
+这里定义了一个名为 Reduce 的静态内部类，该类继承了 Reducer 类，并指定了输入键、输入值、输出键和输出值的类型。
+
+```java
+private long allSalary = 0;
+private int allEmpCount = 0;
+private long aveSalary = 0;
+private long empSalary = 0;
+```
+
+这里定义了一些变量，于存储员工工资、员工数和平均工资等信息。
+
+```java
+public void reduce(IntWritable key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
+```
+
+这里定义了一个名为 reduce 的方法，该方法是 Reducer 类的一个抽象方法，需要在子类中实现。该方法的作用是将 Mapper段输出的键值对进行合并和处理。
+
+```java
+for (Text val : values) {
+```
+
+这里使用 for 循环遍历 values，values 是一个 Iterable 类型的对象，包含了 Mapper 阶段输出的所有 value。
+
+```java
+if (0 == key.get()) {
+    allSalary += Long.parseLong(val.toString());
+   EmpCount++;
+}
+```
+
+这里判断 key 是否为 0，如果是，则将员工工资累加到 allSalary 变量中，并将员工数加 1。
+
+```java
+else if (1 == key.get()) {
+    if (aveSalary == ) {
+        aveSalary = allSalary / allEmpCount;
+        context.write(new Text("Average Salary = "), new Text("" + aveSalary));
+        context.write(new Text("Following employees have salarys higher than Average:"), new Text(""));
+    }
+    empSalary = Long.parseLong(val.toString().split(",")[1]);
+    if (empSalary > aveSalary) {
+        context.write(new Text(val.toString().split(",")[0]), new Text("" + empSalary));
+    }
+}
+```
+
+这里判断 key 是否为 1，如果是，则计算平均工资，并比较员工工资与平均工资的大小，输出工资平均工资高的员工姓名及工资。
+
+```java
+@Override
+public int run(String[] args) throws Exception {
+```
+
+这里重写了 Tool 接口中的 run 方法，该方法是程序的入口。
+
+```java
+Job job = new Job(getConf(), "Q6HigherThanAveSalary");
+job.setJobName("Q6HigherThanAveSalary");
+```
+
+这里创建了一个 Job 对象，并设置了作业名称。
+
+```java
+job.setJarByClass(Q6HigherThanAveSalary.class);
+job.setMapperClass(MapClass.class);
+job.setReducerClass(Reduce.class);
+```
+
+这里设置了 Mapper 和 Reducer 类。
+
+```java
+job.setNumReduceTasks(1);
+```
+
+这里设置 Reduce 任务数为 1，保证各 reduce 是串行的。
+
+```java
+job.setMapOutputKeyClass(IntWritable.class);
+job.setMapOutputValueClass(Text.class);
+```
+
+这里设置 Mapper 阶段的输出键和输出值类型。
+
+```java
+job.setOutputFormatClass(TextOutputFormat.class);
+job.setOutputKeyClass(Text.class);
+job.setOutputValueClass(LongWritable.class);
+```
+
+这里设置输出格式类和输出键值类型。
+
+```java
+String[] otherArgs = new GenericOptionsParser(job.getConfiguration(), args).getRemainingArgs();
+FileInputFormat.addInputPath(job, new Path(otherArgs[0]));
+FileOutputFormat.setOutputPath(job, new Path(otherArgs[1]));
+```
+
+这里设置输入路径和输出路径。
+
+```java
+job.waitForCompletion(true);
+return job.isSuccessful() ? 0 : 1;
+```
+
+这里提交作业并等待作业完成，返回作业执行结果。
 
 
 
@@ -2313,7 +2614,56 @@ h fs -cat /class6/out5/part-r-00000
 
 
 27.
+编译并打包代码
 
+进入 /app/hadoop-1.1.2/myclass/class6 目录中新建 Q5EarnMoreThanManager.java 程序代码（代码也可以使用 /home/shiyanlou/install-pack/class6/Q6HigherThanAveSalary.java 文件）。
+
+cd /app/hadoop-1.1.2/myclass/class6
+vi Q6HigherThanAveSalary.java
+
+编译代码：
+
+javac -classpath ../../hadoop-core-1.1.2.jar:../../lib/commons-cli-1.2.jar Q6HigherThanAveSalary.java
+
+把编译好的代码打成 jar 包，如果不打成 jar 形式运行会提示 class 无法找到的错误。
+
+jar cvf ./Q6HigherThanAveSalary.jar ./Q6HigherThan*.class
+mv *.jar ../..
+rm Q6HigherThan*.class
+请详细分析一下 每一句话。
+    
+    好的，我会逐行解释每一句代码的作用。
+
+```bash
+cd /app/hadoop-1.1.2/myclass/class6
+vi Q6HigherAveSalary.java
+```
+
+这里进入 /app/hadoop-1.1.2/myclass/class6 目录，并使用 vi 编辑器创建 Q6HigherThanAveSalary.java 文件。
+
+```bash
+javac -classpath ../../hadoop-core-1.1.2.jar:../../lib/commons-cli-1.2.jar Q6HigherThanAveSalary.java
+```
+
+这里使用 javac 命令编译 Q6HigherAveSalary.java 文件，并指定类路径为 ../../hadoop-core-1.1.2.jar:../../lib/commons-cli-1.2.jar。
+
+```bash
+jar cvf ./Q6HigherThanAveSalary.jar ./Q6HigherThan*.class
+```
+
+这里使用 jar 命令将编译好的 Q6HigherThanAveSalary.class 文件打包成 Q6HigherThanAveSalary.jar 文件，并指定打包的文件名和文件路径。
+
+```bash
+mv *.jar ../..
+```
+
+这里将打包好的 Q6HigherThanAveSalary.jar 文件移动到上一级目录。
+
+```bash
+rm Q6HigherThan*.class
+```
+
+这里删除编译好的 Q6HigherThanAveSalary.class 文件，以免占用过磁盘空间。
 
 
 
@@ -2323,6 +2673,57 @@ h fs -cat /class6/out5/part-r-00000
 
 
 28.
+    运行并查看结果
+
+运行 Q6HigherThanAveSalary 运行的员工数据路径和输出路径两个参数，需要注意的是 hdfs 的路径参数路径需要全路径，否则运行会报错：
+
+员工数据路径：hdfs://hadoop:9000/class6/input/emp
+输出路径：hdfs://hadoop:9000/class6/out6
+运行如下命令：
+
+cd /app/hadoop-1.1.2
+hadoop jar Q6HigherThanAveSalary.jar Q6HigherThanAveSalary  hdfs://hadoop:9000/class6/input/emp hdfs://hadoop:9000/class6/out6
+运行成功后，刷新 CentOS HDFS 中的输出路径 /class6/out6 目录。
+
+hadoop fs -ls /class6/out6
+hadoop fs -cat /class6/out6/part-r-00000
+
+打开 part-r-00000 文件，可以看到运行结果：
+
+Average Salary =     2077
+Following employees have salarys higher than Average:
+FORD    3000
+CLARK    2450
+KING    5000
+JONES    2975
+BLAKE    2850
+请详细分析一下每一句话。
+    
+    好的，我会逐行解释每一句代码的作用。
+
+```bash
+cd /app/hadoop-1.1.2
+```
+
+这里进入 /app/hadoop-1.1.2 目录。
+
+```bash
+hadoop jar Q6HigherThanAveSalary.jar Q6HigherThanAveSalary hdfs://hadoop:9000/class6/input/emp hdfs://hadoop:9000/class6/out6
+```
+
+这里使用 hadoop 命令运行 Q6HigherThanAveSalary.jar 文件，并指定运行的类为 Q6HigherThanAveSalary，同时指定输入路径和输出路径。
+
+```bash
+hadoop -ls /class6/out6
+```
+
+这里使用 hadoop fs 命令查看输出路径 /class6/out6 中的文件列表。
+
+```bash
+hadoop fs -cat /class6/out6/part-r-00000
+```
+
+这里使用 hadoop fs 命令查看输出路径 /class6/out6 中的 part-r-00000 文件的内容。
 
 
 
@@ -2332,7 +2733,63 @@ h fs -cat /class6/out5/part-r-00000
 
 
 29.
+问题分析
 
+求名字以 J 开头的员工姓名机器所属部门名称，只需判断员工姓名是否以 J 开头。首先和问题 1 类似在 Mapper 的 Setup 阶段缓存部门数据，然后在 Mapper 阶段判断员工姓名是否以 J 开头，如果是抽取出员工姓名和员工所在部门编号，利用缓存部门数据把部门编号对应为部门名称，转换后输出结果。
+    
+    这是一个关于如何在 MapReduce 框架中实现求名字以 J 开头的员工姓名机器所属部门名称的问题分析。
+
+首先，在 Mapper 的 Setup 阶段，可以将部门数据缓存到内存中，以便在 Mapper 阶段中使用。然后，在 Mapper 阶段，对于每个输入记录，可以判断员工姓名是否以 J 开头。如果是，就抽取出员工姓名和员工所在部门编号，并利用缓存的部门数据将部门编号对应为部门名称。最后，将转换后的结果输出。
+
+具体实现可以参考以下步骤：
+
+1. 在 Mapper 的 Setup 阶段，使用 DistributedCache 将部门数据缓存到内存中。可以使用以下代码实现：
+
+```
+public void setup(Context context) throws IOException, InterruptedException {
+    // Get the cached department data file
+    Path[] cacheFiles = DistributedCache.getLocalCacheFiles(context.getConfiguration());
+    Path departmentFile = cacheFiles[0];
+
+    // Read the department data and store it in a HashMap
+    Map<String, String> departmentMap = new HashMap<String, String>();
+    BufferedReader reader = new BufferedReader(new FileReader(departmentFile.toString()));
+    String line;
+    while ((line = reader.readLine()) != null) {
+        String[] tokens = line.split(",");
+        departmentMap.put(tokens[0], tokens[1]);
+    }
+    reader.close();
+
+    // Store the department data in the context for later use
+    context.getConfiguration().set("departmentMap", new Gson().toJson(departmentMap));
+}
+```
+
+2. 在 Mapper 阶段，对于每个输入记录，判断员工姓名是否以 J 开头，并抽取出员工姓名和员工所在部门编号。然后，利用缓存的部门数据将部门编号对应为部门名称。最后，将转换后的结果输出。可以使用以下代码实现：
+
+```
+public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
+    // Get the department data from the context
+    Map<String, String> departmentMap = new Gson().fromJson(context.getConfiguration().get("departmentMap"), new TypeToken<Map<String, String>>(){}.getType());
+
+    // Parse the input record
+    String[] tokens = value.toString().split(",");
+    String name = tokens[0];
+    String departmentId = tokens[1];
+
+    // Check if the name starts with J
+    if (name.startsWith("J")) {
+        // Get the department name from the departmentMap
+        String departmentName = departmentMap.get(departmentId);
+
+        // Output the result
+        context.write(new Text(name), new Text(departmentName));
+    }
+}
+```
+
+以上就是在 MapReduce 框架中实现求名字以 J 开头的员工姓名机器属部门名称的问题分析和实现步骤。
 
 
 
@@ -2341,7 +2798,125 @@ h fs -cat /class6/out5/part-r-00000
 
 
 30.
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.conf.Configured;
+import org.apache.hadoop.filecache.DistributedCache;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
+import org.apache.hadoop.util.GenericOptionsParser;
+import org.apache.hadoop.util.Tool;
+import org.apache.hadoop.util.ToolRunner;
+
+public class Q7NameDeptOfStartJ extends Configured implements Tool {
+
+    public static class MapClass extends Mapper<LongWritable, Text, Text, Text> {
+
+        // 用于缓存 dept文件中的数据
+        private Map<String, String> deptMap = new HashMap<String, String>();
+        private String[] kv;
+
+        // 此方法会在Map方法执行之前执行且执行一次
+        @Override
+        protected void setup(Context context) throws IOException, InterruptedException {
+            BufferedReader in = null;
+            try {
+
+                // 从当前作业中获取要缓存的文件
+                Path[] paths = DistributedCache.getLocalCacheFiles(context.getConfiguration());
+                String deptIdName = null;
+                for (Path path : paths) {
+
+                    // 对部门文件字段进行拆分并缓存到deptMap中
+                    if (path.toString().contains("dept")) {
+                        in = new BufferedReader(new FileReader(path.toString()));
+                        while (null != (deptIdName = in.readLine())) {
+
+                            // 对部门文件字段进行拆分并缓存到deptMap中
+                            // 其中Map中key为部门编号，value为所在部门名称
+                            deptMap.put(deptIdName.split(",")[0], deptIdName.split(",")[1]);
+                        }
+                    }
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            } finally {
+                try {
+                    if (in != null) {
+                        in.close();
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+        public void map(LongWritable key, Text value, Context context) throws IOException,         InterruptedException {
+
+            // 对员工文件字段进行拆分
+            kv = value.toString().split(",");
+
+            // 输出员工姓名为J开头的员工信息，key为员工姓名和value为员工所在部门名称
+            if (kv[1].toString().trim().startsWith("J")) {
+                context.write(new Text(kv[1].trim()), new Text(deptMap.get(kv[7].trim())));
+            }
+        }
+    }
+
+    @Override
+    public int run(String[] args) throws Exception {
+
+        // 实例化作业对象，设置作业名称
+        Job job = new Job(getConf(), "Q7NameDeptOfStartJ");
+        job.setJobName("Q7NameDeptOfStartJ");
+
+        // 设置Mapper和Reduce类
+        job.setJarByClass(Q7NameDeptOfStartJ.class);
+        job.setMapperClass(MapClass.class);
+
+        // 设置输入格式类
+        job.setInputFormatClass(TextInputFormat.class);
+
+        // 设置输出格式类
+        job.setOutputFormatClass(TextOutputFormat.class);
+        job.setOutputKeyClass(Text.class);
+        job.setOutputValueClass(Text.class);
+
+        // 第1个参数为缓存的部门数据路径、第2个参数为员工数据路径和第3个参数为输出路径
+String[] otherArgs = new GenericOptionsParser(job.getConfiguration(), args).getRemainingArgs();
+    DistributedCache.addCacheFile(new Path(otherArgs[0]).toUri(), job.getConfiguration());
+        FileInputFormat.addInputPath(job, new Path(otherArgs[1]));
+        FileOutputFormat.setOutputPath(job, new Path(otherArgs[2]));
+
+        job.waitForCompletion(true);
+        return job.isSuccessful() ? 0 : 1;
+    }
+
+    /**
+     * 主方法，执行入口
+     * @param args 输入参数
+     */
+    public static void main(String[] args) throws Exception {
+        int res = ToolRunner.run(new Configuration(), new Q7NameDeptOfStartJ(), args);
+        System.exit(res);
+    }
+}
+请详细分析每一句代码。
+    
+    
+    
 
 
 
@@ -2350,7 +2925,55 @@ h fs -cat /class6/out5/part-r-00000
 
 
 31.
+编译并打包代码
 
+进入 /app/hadoop-1.1.2/myclass/class6 目录中新建 Q7NameDeptOfStartJ.java 程序代码（代码也可以使用 /home/shiyanlou/install-pack/class6/Q7NameDeptOfStartJ.java 文件）。
+
+cd /app/hadoop-1.1.2/myclass/class6
+vi Q7NameDeptOfStartJ.java
+编译代码：
+
+javac -classpath ../../hadoop-core-1.1.2.jar:../../lib/commons-cli-1.2.jar Q7NameDeptOfStartJ.java
+
+把编译好的代码打成 jar 包，如果不打成 jar 形式运行会提示 class 无法找到的错误。
+
+jar cvf ./Q7NameDeptOfStartJ.jar ./Q7NameDept*.class
+mv *.jar ../..
+rm Q7NameDept*.class
+请详细分析每一句话。
+    
+    
+    好的，我会逐行分析这段代码。
+
+```
+cd /app/hadoop-1.1.2/myclass/class6
+```
+这段代码使用 cd 命令进入 /app/hadoop-1.1.2/myclass6 目录。
+
+```
+vi Q7NameDeptOfStartJ.java
+```
+这段代码使用 vi 命令编辑 Q7NameDeptOfStartJ.java 文件。
+
+```
+javac -classpath ../../hadoop-core-1.1.2.jar:../../lib/commons-cli-1.2.jar Q7NameDeptOfStartJ.java
+```
+这段代码使用 javac 命编译 Q7NameDeptOfStartJ.java 文件，并使用 -classpath 参数指定编译时需要的类路径。其中，../../hadoop-core-1.1.2.jar 和 ../../lib/commons-cli-1.2.jar 分别是adoop 核心库和 commons-cli 库的路径。
+
+```
+jar cvf ./Q7NameDeptOfStartJ.jar ./Q7NameDept*.class
+```
+这段代码使用 jar 命令将编译好的 Q7NameDeptOfStartJ.class 文件打包成 Q7NameDeptOfStartJ.jar 文件。其中，-cvf 参数表示新的 jar 文件并将文件添加到其中，./Q7NameDeptOfStartJ.jar 表示指定打包后的文件名和路径，./Q7NameDept*.class 表示指定要打包的文件名和路径，* 号表示通配符，表示所有以 Q7NameDept 开头的 .class 文件都会被打包。
+
+```
+mv *.jar ../..
+```
+这段代码使用 mv 命令将打包好的 Q7NameDeptOfStartJ.jar 文件移动到 /app/hadoop-1.1.2 目录下。
+
+```
+rm Q7NameDept*.class
+```
+这段代码使用 rm 命令删除编译好的 Q7NameDeptOfStartJ.class 文件。
 
 
 
@@ -2360,7 +2983,49 @@ h fs -cat /class6/out5/part-r-00000
 
 
 32.
+运行并查看结果
 
+运行 Q7NameDeptOfStartJ 时需要输入部门数据路径、员工数据路径和输出路径三个参数，需要注意的是 hdfs 的路径参数路径需要全路径，否则运行会报错：
+
+部门数据路径：hdfs://hadoop:9000/class6/input/dept，部门数据将缓存在各运行任务的节点内容中，可以提高处理的效率。
+员工数据路径：hdfs://hadoop:9000/class6/input/emp。
+输出路径：hdfs://hadoop:9000/class6/out7。
+运行如下命令：
+
+cd /app/hadoop-1.1.2
+hadoop jar Q7NameDeptOfStartJ.jar Q7NameDeptOfStartJ hdfs://hadoop:9000/class6/input/dept hdfs://hadoop:9000/class6/input/emp hdfs://hadoop:9000/class6/out7
+运行成功后，刷新 CentOS HDFS 中的输出路径 /class6/out7 目录。
+
+hadoop fs -ls /class6/out7
+hadoop fs -cat /class6/out7/part-r-00000
+
+打开 part-r-00000 文件，可以看到运行结果：
+
+JAMES    SALES
+JONES    RESEARCH
+请详细分析每一句话。
+
+    好的，我会逐行分析这段代码。
+
+```
+cd /app/hadoop-1.1.2
+```
+这段代码使用 cd 命令进入 //hadoop-1.1.2 目录。
+
+```
+hadoop jar Q7NameDeptOfStartJ.jar Q7NameDeptOfStartJ hdfs://hadoop:9000/class6/input/dept hdfs://hadoop:9000/class6/input/emp hdfs://hadoop:9000/class6/out7
+```
+这段代码使用 hadoop 命令运行 Q7NameDeptOfStartJ 作业，并指定部门数据路径、员工数据路径和输出路径三个参数。其中，hadoop jar 表示运行 Hadoop 作业Q7NameDeptOfStartJ.jar 表示要运行的作业 jar 包，Q7NameDeptOfStartJ 表示要运行的作业类，hdfs://hadoop:9000/class6/input/dept 表示部门数据路径，hdfs://hadoop:0/class6/input/emp 表示员工数据路径，hdfs://hadoop:9000/class6/out7 表示输出路径。
+
+```
+hadoop fs -ls /class6/out7
+```
+这段代码使用 hadoop fs 命令查看 /class6/out7 目录的文件列表。
+
+```
+hadoop fs -cat /class6/out7/part-r-00000
+```
+这段代码使用 hadoop fs 命令查看 /class6/out7/part-r-00000 文件的内容。其中，-cat 参数表示查看文件内容。
 
 
 
