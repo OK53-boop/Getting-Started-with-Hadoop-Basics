@@ -3034,7 +3034,23 @@ hadoop fs -cat /class6/out7/part-r-00000
 
 
 33.
+问题分析
 
+求工资最高的头三名员工姓名及工资，可以通过冒泡法得到。在 Mapper 阶段输出经理数据和员工对应经理表数据，其中经理数据 key 为 0 值、value 为"员工姓名，员工工资"。最后在 Reduce 中通过冒泡法遍历所有员工，比较员工工资多少，求出前三名。
+
+请详细分析一下。
+    
+    这段文本描述了一个数据处理的流程，主要是针对求工资最高的头三名员工姓名及工资这个问题进行分析和解决。下面是对这个流程的详细分析：
+
+1. 冒泡法：冒泡法是一种简单的排序算法，它的基本思想是通过相邻元素之间的比较和交换来实现排序。在这个流程中，冒泡法被用来对所有员工的工资进行排序，以便找出工资最高的前三名员工。
+
+2. Mapper 阶段：在 Mapper 阶段，数据被分成多个小块，每个小块都由一个 Mapper 处理。在这个流程中，Mapper 的任务是将经理数据和员工对应经理表数据输出，其中经理数据的 key 值为 0，value 值为"员工，员工工资"。这个过程可以通过编写 Map 函数来实现。
+
+3. Reduce 阶段：在 Reduce 阶段，所有 Mapper 输出的数据合并起来，然后按照 key 值进行排序和分组。在这个流程中，Reduce 的任务是通过冒泡法遍历所有员工，比较员工工资多少，求出前三名。个过程可以通过编写 Reduce 函数来实现。
+
+4. 数据处理流程的目标：最终的目标是找出工资最高的前名员工姓名和工资。这个目标可以通过在 Reduce 阶段对所有员工的工资进行排序和比较来实现。
+
+总之，这个数据处理流程主要是通过冒泡法和 MapReduce 模型来实现对员工工资数据的处理和分析，以便找出工资最高的前三名员工。在这个过程中，系统工程师需要具备系统设计、集成和测试等方面的技能，同时需要具备分析问题、解决问题、沟通协作、注重细节、持续改进、风险管理、时间管理和客户满意度等方面的能力。
 
 
 
@@ -3043,6 +3059,279 @@ hadoop fs -cat /class6/out7/part-r-00000
 
 
 34.
+    import java.io.IOException;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.conf.Configured;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
+import org.apache.hadoop.util.GenericOptionsParser;
+import org.apache.hadoop.util.Tool;
+import org.apache.hadoop.util.ToolRunner;
+
+public class Q8SalaryTop3Salary extends Configured implements Tool {
+
+    public static class MapClass extends Mapper<LongWritable, Text, IntWritable, Text> {
+
+        public void map(LongWritable key, Text value, Context context) throws IOException,         InterruptedException {
+
+            // 对员工文件字段进行拆分
+            String[] kv = value.toString().split(",");
+
+            // 输出key为0和value为员工姓名+","+员工工资
+            context.write(new IntWritable(0), new Text(kv[1].trim() + "," + kv[5].trim()));
+        }
+    }
+
+    public static class Reduce extends Reducer<IntWritable, Text, Text, Text> {
+
+        public void reduce(IntWritable key, Iterable<Text> values, Context context) throws         IOException, InterruptedException {
+
+            // 定义工资前三员工姓名
+            String empName;
+            String firstEmpName = "";
+            String secondEmpName = "";
+            String thirdEmpName = "";
+
+            // 定义工资前三工资
+            long empSalary = 0;
+            long firstEmpSalary = 0;
+            long secondEmpSalary = 0;
+            long thirdEmpSalary = 0;
+
+            // 通过冒泡法遍历所有员工，比较员工工资多少，求出前三名
+            for (Text val : values) {
+                empName = val.toString().split(",")[0];
+                empSalary = Long.parseLong(val.toString().split(",")[1]);
+
+                if(empSalary > firstEmpSalary) {
+                    thirdEmpName = secondEmpName;
+                    thirdEmpSalary = secondEmpSalary;
+                    secondEmpName = firstEmpName;
+                    secondEmpSalary = firstEmpSalary;
+                    firstEmpName = empName;
+                    firstEmpSalary = empSalary;
+                } else if (empSalary > secondEmpSalary) {
+                    thirdEmpName = secondEmpName;
+                    thirdEmpSalary = secondEmpSalary;
+                    secondEmpName = empName;
+                    secondEmpSalary = empSalary;
+                } else if (empSalary > thirdEmpSalary) {
+                    thirdEmpName = empName;
+                    thirdEmpSalary = empSalary;
+                }
+            }
+
+            // 输出工资前三名信息
+            context.write(new Text( "First employee name:" + firstEmpName), new Text("Salary:"             + firstEmpSalary));
+            context.write(new Text( "Second employee name:" + secondEmpName), new                     Text("Salary:" + secondEmpSalary));
+            context.write(new Text( "Third employee name:" + thirdEmpName), new Text("Salary:"             + thirdEmpSalary));
+        }
+    }
+
+    @Override
+    public int run(String[] args) throws Exception {
+
+        // 实例化作业对象，设置作业名称
+        Job job = new Job(getConf(), "Q8SalaryTop3Salary");
+        job.setJobName("Q8SalaryTop3Salary");
+
+        // 设置Mapper和Reduce类
+        job.setJarByClass(Q8SalaryTop3Salary.class);
+        job.setMapperClass(MapClass.class);
+        job.setReducerClass(Reduce.class);
+        job.setMapOutputKeyClass(IntWritable.class);
+        job.setMapOutputValueClass(Text.class);
+
+        // 设置输入格式类
+        job.setInputFormatClass(TextInputFormat.class);
+
+        // 设置输出格式类
+        job.setOutputKeyClass(Text.class);
+        job.setOutputFormatClass(TextOutputFormat.class);
+        job.setOutputValueClass(Text.class);
+
+        // 第1个参数为员工数据路径和第2个参数为输出路径
+        String[] otherArgs = new GenericOptionsParser(job.getConfiguration(),                     args).getRemainingArgs();
+        FileInputFormat.addInputPath(job, new Path(otherArgs[0]));
+        FileOutputFormat.setOutputPath(job, new Path(otherArgs[1]));
+
+        job.waitForCompletion(true);
+        return job.isSuccessful() ? 0 : 1;
+    }
+
+    /**
+     * 主方法，执行入口
+     * @param args 输入参数
+     */
+    public static void main(String[] args) throws Exception {
+        int res = ToolRunner.run(new Configuration(), new Q8SalaryTop3Salary(), args);
+        System.exit(res);
+    }
+}
+请详细分析一下每一句代码。
+    
+    
+    好的，下面是对每一句代码的详细分析：
+
+1. `import java.io.IOException;`：导入 Java IO 异常类。
+
+2. `import org.apache.hadoop.conf.Configuration;`：导入 Hadoop 配置类。
+
+3. `import org.apache.hadoop.conf.Configured;`：导入 Hadoop置类的子类 Configured。
+
+4. `import org.apache.hadoop.fs.Path;`：导入 Hadoop 文件系统路径类。
+
+5. `import org.apache.hadoop.io.IntWritable;`：导入 Hadoop 整型可写类。
+
+6. `import org.apache.hadoop.io.LongWritable;`：导入 Hadoop 长整型可写类。
+
+7. `import org.apache.hadoop.io.Text;`：导入 Hadoop 文本类。
+
+8. `import org.apache.hadoop.mapreduce.Job;`：导入adoop 作业类。
+
+9. `import org.apache.hadoop.mapreduce.Mapper;`：导入 Hadoop Mapper 类。
+
+10. `import org.apache.hadoop.mapreduce.Reducer;`：导入 Hadoop Reducer 类。
+
+11. `import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;`：导入 Hadoop 文件输入格式类。
+
+12. `import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;`：导入 Hadoop 文本输入格式类。
+
+13. `import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;`：导入 Hadoop 文件输出格式类。
+
+14. `import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;`：导入 Hadoop 文本输出格式类。
+
+15. `import org.apache.hadoop.util.GenericOptionsParser;`：导入 Hadoop 通用选项解析器类。
+
+16. `import org.apache.hadoop.util.Tool;`：导入 Hadoop 工具类。
+
+17. `import org.apache.hadoop.util.ToolRunner;`：导入 Hadoop 工具类的运行器类。
+
+18. `public class Q8SalaryTop3 extends Configured implements Tool {`：定义一个名为 Q8SalaryTop3Salary 的类，继承自 Configured 类并实现 Tool 接口。
+
+19. `public static class MapClass extends Mapper<LongWritable, Text, IntWritable, Text> {`：定义一个名为 MapClass 的静态内部类，继承自 Mapper 类，泛型参数分别为 LongWritable、Text、IntWritable 和 Text。
+
+20. `public void map(LongWritable key Text value, Context context) throws IOException, InterruptedException {`：重写 Mapper 类的 map 方法，参数分别为 LongWritable、Text 和 Context，抛出 IOException 和 InterruptedException 异常。
+
+21. `String[] kv = value.toString().split(",");`：将输入的文本数据按逗号进行拆分，存储到字符串数组 kv 中。
+
+22. `context.write(new IntWritable(), new Text(kv[1].trim() + "," + kv[5].trim()));`：将员工姓名和工资拼接成字符串，作为 value 值，key 值为 0，输出到 Reduce 阶段。
+
+23. `public static class Reduce extends Reducer<IntWritable, Text, Text, Text {`：定义一个名为 Reduce 的静态内部类，继承自 Reducer 类，泛型参数分别为 IntWritable、Text、Text 和 Text。
+
+24. `public void(IntWritable key, Iterable<Text> values, Context context) throws IOException, InterruptedException {`：重写 Reducer 类的 reduce 方法，参数分别为 IntWritable、Iterable<Text> 和 Context，抛出 IOException 和 InterruptedException 异常。
+
+25. `String empName;`：定义一个字符串变量 empName，用于存储员工姓名。
+
+26. `String firstEmpName = "";`：定义一个字符串变量 firstEmpName，用于存储工资最高的员工姓名。
+
+27. `String secondEmpName = "";`：定义一个字符串变量 secondEmpName，用于存储工资第二高的员工姓名。
+
+28. `String thirdEmpName = "";`：定义一个字符串变量 thirdEmpName，用于存储资第三高的员工姓名。
+
+29. `long empSalary = 0;`：定义一个长整型变量 empSalary，用于存储员工工资。
+
+30. `long firstEmpSalary = 0;`：定义一个长整型变量 firstEmpSalary用于存储工资最高的员工工资。
+
+31. `long secondEmpSalary = 0;`：定义一个长整型变量 secondEmpSalary，用于存储工资第二高的员工工资。
+
+32. `long thirdEmpSalary = 0;`：定义一个长整型变量 thirdEmpSalary，用于存储工资第三高的员工工资。
+
+33. ` (Text val : values) {`：遍历所有员工的资数据。
+
+34. `empName = val.toString().split(",")[0];`：将员工姓名存储到 empName 变量中。
+
+35. `empSalary = Long.parseLong(val.toString().split(",")[1]);`：将员工工资转为长整型并存储到 empSalary 变量中。
+
+36. `if(empSalary > firstEmpSalary) {`：如果当前员工工资大于工资最高的员工工资。
+
+37. `thirdEmpName = secondEmpName;`：将工资第二高的员工姓名赋值工资第三高的员工姓名。
+
+38. `thirdEmpSalary = secondEmpSalary;`：将工资第二高的员工工资赋值给工资第三高的员工工资。
+
+39. `secondEmpName = firstEmpName;`：将工资最高的员工姓名赋值给工第二高的员工姓名。
+
+40. `secondEmpSalary = firstEmpSalary;`：将工资最高的员工工资赋值给工资第二高的员工工资。
+
+41. `firstEmpName = empName;`：将当前员工姓名赋值给工资最高的员姓名。
+
+42. `firstEmpSalary = empSalary;`：将当前员工工资赋值给工最高的员工工资。
+
+43. `} if (empSalary > secondEmpSalary) {`：如果当前员工工资大于工资第二高的员工工资。
+
+44. `thirdEmpName = secondEmpName;`：将工资第二高的员工姓名赋给工资第三高的员工姓名。
+
+45. `thirdEmpSalary = secondEmpSalary;`：将工资第二高的员工工资赋值给工资第三高的员工工资。
+
+46. `secondEmpName = empName;`：将当前员工姓名赋值给工资第二高的员工姓名。
+
+47. `secondEmpSalary = empSalary;`：将当前员工工资赋值给工资第二高的员工工资。
+
+48. `} else if (empSalary > thirdEmpSalary) {`：如果当前员工工资大于工资第三高的员工工资。
+
+49. `thirdEmpName = empName;`：将当前员工赋值给工资第三高的员工姓名。
+
+50. `thirdEmpSalary = empSalary;`：将当前工工资赋值给工资第三高的员工工资。
+
+51. `}`：结束 if-else 语句。
+
+52. `context.write(new Text( "First employee:" + firstEmpName), new Text("Salary:" + firstEmpSalary));`：输出工资最高的员工姓名和工资。
+
+53. `context.write(new Text( "Second employee name:" + secondEmpName), new Text("Salary:" + secondEmpSalary));`：输出资第二高的员工姓名和工资。
+
+54. `context.write(new Text( "Third employee name:" + thirdEmpName), new Text("Salary:" + thirdEmpSalary));`：输出工资第三高的员工姓名和工资。
+
+55. `@Override：重写 Tool 接口的 run 方法。
+
+56. `public int run(String[] args) throws Exception {`：重写 Tool 接口的 run 方法，参数为字符串数组 args，抛出 Exception 异常。
+
+57. `Job job = new Job(getConf(), "Q8SalaryTop3Salary");`：创建一个 Job 对象，传入 Hadoop 配置对象和作业名称。
+
+58. `job.setJobName("Q8SalaryTop3Salary");`：设置作业名称。
+
+59. `job.setJarByClass(Q8SalaryTop3Salary.class);`：设置作业的主类。
+
+60. `job.setMapperClass(MapClass.class);`：设置 Mapper 类。
+
+61. `job.setReducerClass(Reduce.class);`：设置 Reducer 类。
+
+62. `job.setMapOutputKeyClass(IntWritable.class);`：设置 Mapper 输出的 key 类型。
+
+63. `job.setMapOutputValueClass(Text.class);`：设置 Mapper 输出的 value 类型。
+
+64. `job.setInputFormatClass(TextInputFormat.class);`：设置输入格式类。
+
+65. `job.setOutputKeyClass(Text.class);`：设置输出 key 类型。
+
+66. `job.setOutputFormatClass(TextOutputFormat.class);`：设置输出格式类。
+
+67. `job.setOutputValueClass(Text.class);`：设置输出 value 类型。
+
+68. `String[] otherArgs = new GenericOptionsParser(job.getConfiguration(), args).getRemainingArgs();`：使用通用选项解析器获取输入路径和输出路径。
+
+69. `FileInputFormat.addInputPath(job, new Path(otherArgs[0]));`：设置输入路径。
+
+70. `FileOutputFormatPath(job, new Path(otherArgs[1]));`：设置输出路径。
+
+71. `job.waitForCompletion(true);`：提交作业并等待完成。
+
+72. `return job.isSuccessful() ? 0 : 1;`：返回作业执行结果。
+
+73. `public static void main(String[] args) throws Exception {`：主方法。
+
+74. `int res = ToolRunner.run(new Configuration(), new Q8SalaryTop3Salary(), args);`：运行作业。
+
+75. `System.exit(res);`：退出程序。
 
 
 
@@ -3052,7 +3341,38 @@ hadoop fs -cat /class6/out7/part-r-00000
 
 
 35.
+编译并打包代码
 
+进入 /app/hadoop-1.1.2/myclass/class6 目录中新建 Q8SalaryTop3Salary.java 程序代码（代码也可以使用 /home/shiyanlou/install-pack/class6/Q8SalaryTop3Salary.java 文件）。
+
+cd /app/hadoop-1.1.2/myclass/class6
+vi Q8SalaryTop3Salary.java
+
+编译代码：
+
+javac -classpath ../../hadoop-core-1.1.2.jar:../../lib/commons-cli-1.2.jar Q8SalaryTop3Salary.java
+
+把编译好的代码打成 jar 包，如果不打成 jar 形式运行会提示 class 无法找到的错误。
+
+jar cvf ./Q8SalaryTop3Salary.jar ./Q8SalaryTop3*.class
+mv *.jar ../..
+rm Q8SalaryTop3*.class
+
+请详细分析每一句话。
+    
+    好的，下面是对每一句代码的详细分析：
+
+1. `cd /app/hadoop-1.1.2/myclass/class6`：进入指定目录。
+
+2. `vi Q8SalaryTop3Salary.java`：使用 vi 编辑打开 Q8SalaryTop3Salary.java 文件。
+
+3. `javac -classpath ../../hadoop-core-1.1.2.jar:../../lib/commons-cli-1.2.jar Q8SalaryTop3Salary.java`：使用 javac 命令编译 Q8SalaryTop3Salary.java 文件，-classpath 参数指定编译时需要的类，包括 Hadoop 核心库和 commons-cli 库。
+
+4. `jar cvf ./Q8SalaryTop3Salary.jar ./Q8SalaryTop3*.class`：使用 jar 命令将编译好的 Q8SalaryTop3Salary 类打包成 jar 文件，-c 参数表示创建新的 jar 文件，-v 参数表示在标准输出中显示详细信息，-f 参数指定 jar 文件名，最后一个参数指定需要打包的类文件。
+
+5. `mv *.jar ../..`：将打包好的 jar 文件移动到上一级目录。
+
+6. `rm Q8SalaryTop3*.class`：删除编译的类文件。
 
 
 
@@ -3061,7 +3381,40 @@ hadoop fs -cat /class6/out7/part-r-00000
 
 
 36.
+运行并查看结果
 
+运行 Q8SalaryTop3Salary 运行的员工数据路径和输出路径两个参数，需要注意的是 hdfs 的路径参数路径需要全路径，否则运行会报错：
+
+员工数据路径：hdfs://hadoop:9000/class6/input/emp。
+输出路径：hdfs://hadoop:9000/class6/out8。
+运行如下命令：
+
+cd /app/hadoop-1.1.2
+hadoop jar Q8SalaryTop3Salary.jar Q8SalaryTop3Salary hdfs://hadoop:9000/class6/input/emp hdfs://hadoop:9000/class6/out8
+运行成功后，刷新 CentOS HDFS 中的输出路径 /class6/out8 目录。
+
+hadoop fs -ls /class6/out8
+hadoop fs -cat /class6/out8/part-r-00000
+
+打开 part-r-00000 文件，可以看到运行结果：
+
+First employee name:KING    Salary:5000
+Second employee name:FORD    Salary:3000
+Third employee name:JONES    Salary:2975
+
+请详细分析一下每一句话。
+    
+    好的，下面是对每一句代码的详细分析：
+
+1. `cd /app/hadoop-1.1.2`：进入指定目录。
+
+2. `hadoop jar Q8SalaryTop3Salary.jar Q8SalaryTop3Salary hdfs://hadoop:9000/class6/input/emp hdfs://hadoop:9000/class6/out8`： hadoop 命令运行 Q8SalaryTop3Salary 类，传入员工数据路径和输出路径两个参数。
+
+3. `hadoop fs -ls /class6/out8`：使用 hadoop fs 命令查看输出路径 /class6/out8 目录下的文件。
+
+4. `hadoop fs -cat /class6/out8/part-r-00000`：使用 hadoop fs 命令查看输出路径 /class6/out8 目录下的 part-r-00000 文件内容。
+
+5. 打开 part-r-00000 文件，可以看到运行结果：输出工资最高的员工姓名和工资，输出资第二高的员工姓名和工资，输出工资第三高的员工姓名和工资。
 
 
 
@@ -3070,7 +3423,18 @@ hadoop fs -cat /class6/out7/part-r-00000
 
 
 37.
+问题分析
 
+求全体员工总收入降序排列，获得所有员工总收入并降序排列即可。在 Mapper 阶段输出所有员工总工资数据，其中 key 为员工总工资、value 为员工姓名，在 Mapper 阶段的最后会先调用 job.setPartitionerClass 对数据进行分区，每个分区映射到一个 reducer，每个分区内又调用 job.setSortComparatorClass 设置的 key 比较函数类排序。由于在本作业中 Map 的 key 只有 0 值，故能实现对所有数据进行排序。
+请详细分析一下。
+    
+    这是一个 MapReduce 任务，目的是对所有员工的总收入进行降序排列。在 Mapper 阶段，每个员工的姓名和总收入会被映射成一个键值对，其中键是员工的总收入，值是工的姓名。这些键值对会被发送到不同的 reducer 中，每个 reducer 会对它们进行排序并输出结果。
+
+在 Mapper 阶段最后，会使用 job.setPartitionerClass 方法对数据进行分区，这意味着每个 reducer 只会接收到一部分数据。这个方法会根据键的哈希值将数据分配到不同的 reducer 中。这样做的目的是为了让每个 reducer 只处理一部分数据，从而提高处理效率。
+
+在每个 reducer 中，会使用 job.setSortComparatorClass 方法设置一个比较函数类，用于对键进行排序。这个方法会根据键的值对键值对进行排序，从而实现对所有员工总收入的降序排列。
+
+最终，所有 reducer 的输出会被合并成一个结果，并按照降序排列的顺序输出所有员工的总收入和姓名。这就能够得到一个按照总收入降序排列的员工列表。
 
 
 
@@ -3080,6 +3444,162 @@ hadoop fs -cat /class6/out7/part-r-00000
 
 
 38.
+    import java.io.IOException;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.conf.Configured;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.WritableComparable;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.util.GenericOptionsParser;
+import org.apache.hadoop.util.Tool;
+import org.apache.hadoop.util.ToolRunner;
+
+public class Q9EmpSalarySort extends Configured implements Tool {
+
+    public static class MapClass extends Mapper<LongWritable, Text, IntWritable, Text> {
+
+        public void map(LongWritable key, Text value, Context context) throws IOException,         InterruptedException {
+
+            // 对员工文件字段进行拆分
+            String[] kv = value.toString().split(",");
+
+            // 输出key为员工所有工资和value为员工姓名
+            int empAllSalary = "".equals(kv[6]) ? Integer.parseInt(kv[5]) :                             Integer.parseInt(kv[5]) + Integer.parseInt(kv[6]);
+            context.write(new IntWritable(empAllSalary), new Text(kv[1]));
+        }
+    }
+
+    /**
+     * 递减排序算法
+     */
+    public static class DecreaseComparator extends IntWritable.Comparator {
+        public int compare(WritableComparable a, WritableComparable b) {
+            return -super.compare(a, b);
+        }
+
+        public int compare(byte[] b1, int s1, int l1, byte[] b2, int s2, int l2) {
+            return -super.compare(b1, s1, l1, b2, s2, l2);
+        }
+    }
+
+    @Override
+    public int run(String[] args) throws Exception {
+
+        // 实例化作业对象，设置作业名称
+        Job job = new Job(getConf(), "Q9EmpSalarySort");
+        job.setJobName("Q9EmpSalarySort");
+
+        // 设置Mapper和Reduce类
+        job.setJarByClass(Q9EmpSalarySort.class);
+        job.setMapperClass(MapClass.class);
+
+        // 设置输出格式类
+        job.setMapOutputKeyClass(IntWritable.class);
+        job.setMapOutputValueClass(Text.class);
+        job.setSortComparatorClass(DecreaseComparator.class);
+
+        // 第1个参数为员工数据路径和第2个参数为输出路径
+        String[] otherArgs = new GenericOptionsParser(job.getConfiguration(),                     args).getRemainingArgs();
+        FileInputFormat.addInputPath(job, new Path(otherArgs[0]));
+        FileOutputFormat.setOutputPath(job, new Path(otherArgs[1]));
+
+        job.waitForCompletion(true);
+        return job.isSuccessful() ? 0 : 1;
+    }
+
+    /**
+     * 主方法，执行入口
+     * @param args 输入参数
+     */
+    public static void main(String[] args) throws Exception {
+        int res = ToolRunner.run(new Configuration(), new Q9EmpSalarySort(), args);
+        System.exit(res);
+    }
+}
+请详细分析一下每一句代码。
+    
+    
+    这是一个使用 Hadoop MapReduce 实现对员工总收入进行降序排列的程序。下面是每一句代码的详细分析：
+
+```java
+public static class MapClass extends Mapper<LongWritable,, IntWritable, Text> {
+    // Mapper 类，继承自 Hadoop 的 Mapper 类，用于将输入数据映射为键值对
+    // 输入键类型为 LongWritable，输入值类型为 Text，输出键类型为 IntWritable，输出值类型为 Text
+    // Mapper 类中的 map 方法会被adoop 自动调用，用于对输入数据进行处理
+    // 在本例中，map 方法会将员工总收入作为键，员工姓名作为值输出
+}
+
+public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
+    // Mapper 类中的 map 方法，用于对输入数据进行处理
+    // key 表示输入数据的键，value 表示输入数据的值，context 表示 Mapper 的上下文
+    // 在本例中，输入数据的键为文件中行号，值为文件中的一行数据
+    // 对员工文件字段进行拆分
+    String[] kv = value.toString().split(",");
+    // 将员工基本工资和津贴相加得到员工总收入
+    int empAllSalary = "".equals(kv[6]) ? Integer.parseInt(kv[5]) : Integer.parseInt(kv[5]) + Integer.parseInt(kv[6]);
+    // 输出键为员工总收入，值为员工姓名
+    context.write(new IntWritable(empAllSalary), new Text(kv[1]));
+}
+
+public static class DecreaseComparator extends IntWritable.Comparator {
+    // 自定义的递减排序算法，继承自 Hadoop 的 IntWritable.Comparator 类
+    // 在本例中，用于对 Mapper 输出的键（员工总收入）进行降序排列
+    public int compare(WritableComparable a, WritableComparable b) {
+        return -super.compare(a, b);
+    }
+
+    public int compare(byte[] b1, int s1, int l1, byte[] b2, int s2, int l2) {
+        return -super.compare(b1, s1, l1, b2, s2, l2);
+    }
+}
+
+@Override
+public int run(String[] args) throws Exception {
+    // 实现 Tool 接口的 run 方法，用于运行 MapReduce 作业
+    // 在本例中，用于对员工总收入进行降序排列
+    // 实例化作业对象，设置作业名称    Job job = new Job(getConf(), "Q9EmpSalarySort");
+    job.setJobName("Q9EmpSalarySort");
+
+    // 设置 Mapper 和 Reduce 类
+    job.setJarByClass(Q9EmpSalarySort.class);
+    job.setMapperClass(MapClass.class);
+
+    // 设置输出格式类
+    job.setMapOutputKeyClass(IntWritable.class);
+    job.setMapOutputValueClass(Text.class);
+    job.setSortComparatorClass(DecreaseComparator.class);
+
+    // 设置输入路径和输出路径
+    String[] otherArgs = new GenericOptionsParser(job.getConfiguration(), args).getRemainingArgs();
+    FileInputFormat.addInputPath(job, new Path(otherArgs[0]));
+    FileOutputFormat.setOutputPath(job, new Path(otherArgs[1]));
+
+    // 等待作业完成并返回结果
+    job.waitForCompletion(true);
+    return job.isSuccessful() ? 0 : 1;
+}
+
+public static void main(String[] args) throws Exception {
+    // 主方法，用于运行 MapReduce 作业    int res = ToolRunner.run(new Configuration(), new Q9EmpSalarySort(), args);
+    System.exit(res);
+}
+```
+
+总体来说，这个程序的实现过程包括以下几个步骤：
+
+1. 定义 类，将输入数据映射为键值对，其中键为员工总收入，值为员工姓名。
+2. 定义自定义的递减排序算法，用于对 Mapper 输出的键（员工总收入）进行降序排列。
+3. 实现 Tool 接口的 run 方法，用于运行 MapReduce 作业，其中设置 Mapper 和 Reduce 类、输出格式类、输入路径和输出路径等参数。
+4. 在主方法中运行 MapReduce 作业。
+
+通过以上步骤，就能够实现对员工总收入进行降序排列的功能。
 
 
 
@@ -3090,6 +3610,33 @@ hadoop fs -cat /class6/out7/part-r-00000
 
 
 39.
+    编译并打包代码
+
+进入 /app/hadoop-1.1.2/myclass/class6 目录中新建 Q9EmpSalarySort.java 程序代码（代码也可以使用 /home/shiyanlou/install-pack/class6/Q9EmpSalarySort.java 文件）。
+
+cd /app/hadoop-1.1.2/myclass/class6
+vi Q9EmpSalarySort.java
+
+编译代码：
+
+javac -classpath ../../hadoop-core-1.1.2.jar:../../lib/commons-cli-1.2.jar Q9EmpSalarySort.java
+
+把编译好的代码打成 jar 包，如果不打成 jar 形式运行会提示 class 无法找到的错误。
+
+jar cvf ./Q9EmpSalarySort.jar ./Q9EmpSalary*.class
+mv *.jar ../..
+rm Q9EmpSalary*.class
+请详细分析一下每一句话。
+    
+    这段代码的作用是编译并打包 Q9EmpSalarySort.java 程序代码。
+
+首先，进入 /app/hadoop-1.1./myclass/class6 目录中，使用 vi 命令新建 Q9EmpSalarySort.java 程序代码，或者使用 /home/shiyanlou/install-pack/class6/Q9EmpSalarySort.java 文件。
+
+然后，使用 javac 命令编译 Q9EmpSalarySort.java 程序代码。其中，-classpath 参数指定了编译时需要使用的类路径，包括 hadoop-core-1.1.2.jar 和 commons-cli-1.2.jar 两个 jar 包。
+
+接着，使用 jar 命令将编译好的代码打成 jar。其中，cvf 参数表示创建新的 jar 包，Q9EmpSalarySort.jar 表示新建的 jar 包的名称，./Q9EmpSalary*.class 表示需要打包的文件。
+
+最后，将打好的 包移动到上一级目录中，删除编译好的 class 文件。这样就完成了编译并打包 Q9EmpSalarySort.java 程序代码的过程。
 
 
 
@@ -3098,7 +3645,37 @@ hadoop fs -cat /class6/out7/part-r-00000
 
 
 40.
+运行并查看结果
 
+运行 Q9EmpSalarySort 运行的员工数据路径和输出路径两个参数，需要注意的是 hdfs 的路径参数路径需要全路径，否则运行会报错：
+
+员工数据路径：hdfs://hadoop:9000/class6/input/emp
+输出路径：hdfs://hadoop:9000/class6/out9
+运行如下命令：
+
+cd /app/hadoop-1.1.2
+hadoop jar Q9EmpSalarySort.jar Q9EmpSalarySort hdfs://hadoop:9000/class6/input/emp hdfs://hadoop:9000/class6/out9
+运行成功后，刷新 CentOS HDFS 中的输出路径 /class6/out9 目录。
+
+hadoop fs -ls /class6/out9
+hadoop fs -cat /class6/out9/part-r-00000
+
+打开 part-r-00000 文件，可以看到运行结果：
+
+5000    KING
+3000    FORD
+2975    JONES
+2850    BLAKE
+......
+请详细分析一下每一句话。
+    
+    这段代码的作用是运行 Q9EmpSalarySort 程序，并查看运行结果。
+
+首先，进入 /app/hadoop-1.1.2 目录中，使用 hadoop jar 命令行 Q9EmpSalarySort 程序。其中，Q9EmpSalarySort 表示程序的主类，hdfs://hadoop:9000/class6/input/emp 表示员工数据路径，hdfs://hadoop:9000/class6/out9 表示输出路径。
+
+接着，使用 hadoop fs -ls 命令查看输出路径 /class6/out9 目录下的文件列表，确认程序运行成功。
+
+最后，使用 hadoop fs -cat 命令查看 part-r-00000 文件的内容，即可查看程序运行结果。其中，part-r-00000 文件是程序的输出文件，包含了员工总收入和员工姓名的对应关系，按照员工总收入降序排列。
 
 
 
@@ -3107,7 +3684,24 @@ hadoop fs -cat /class6/out7/part-r-00000
 
 
 41.
+问题分析
 
+该公司所有员工可以形成入下图的树形结构，求两个员工的沟通的中间节点数，可转换在员工树中求两个节点连通所经过的节点数，即从其中一节点到汇合节点经过节点数加上另一节点到汇合节点经过节点数。例如求 M 到 Q 所需节点数，可以先找出 M 到 A 经过的节点数，然后找出 Q 到 A 经过的节点数，两者相加得到 M 到 Q 所需节点数。
+
+
+
+在作业中首先在 Mapper 阶段所有员工数据，其中经理数据 key 为 0 值、value 为"员工编号，员工经理编号"，然后在 Reduce 阶段把所有员工放到员工列表和员工对应经理链表 Map 中，最后在 Reduce 的 Cleanup 中按照上面说所算法对任意两个员工计算出沟通的路径长度并输出。
+请详细分析一下。
+    
+    这是一个典型的MapReduce问题，需要使用MapReduce框架来解决。在这个问题中，我们需要将员工数据转换为一张图，并使用图论算来求解两个员工之间的最短路径。
+
+具体来说，我们可以在Mapper阶段将所有员工数据读入，并将经理数据key设置为0，value设置为"员工编号，员工经理编号"。然后，在Reduce阶段，我们可以将所有员工放到员工和员工对应经理链表Map中。在这个Map中，每个键表示一个员工，对应的值是一个列表，其中包含该员工的所有下属员工。
+
+接下来，在Reduce的Cleanup阶段，我们可以使用图论法来计算任意两个员工之间的最短路径。具体来说，我们可以使用广度优先搜索算法（BFS）来求解最短路径。BFS算法从起点开始，逐层遍历图中的节点，直到找到目标节点为止。在遍历过程中，我们需要记录每个节点的深度（即从起点到该节点的距离），以便在找到目标节点后计算最短路径。
+
+在这个问题中，我们可以将员工列表和员工对应经理链表Map转换为一张无向图，其中每个节点表示一个员工，每个边表示两个员工之间关系。然后，我们可以使用BFS算法来求解两个员工之间的最短路径。具体来说，我们可以从其中一个员工开始，逐层遍历图中的节点，直到找到另一个员工为止。在遍历过程中，我们需要记录每个节点的深度，以便在找到目标节点后计算最短路径。
+
+需要注意的是，如果两个员工之间没有直接的关系，那么它之间的最短路径就是它们到共同祖先节点的距离之和。因此，在实际求解中，我们需要先找到这两个员工的共同祖先节点，然后再计算它们到共同祖先节点的距离。最后，我们可以将计算出的沟通路径长度输出。
 
 
 
@@ -3117,7 +3711,185 @@ hadoop fs -cat /class6/out7/part-r-00000
 
 
 42.
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.conf.Configured;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.NullWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
+import org.apache.hadoop.util.GenericOptionsParser;
+import org.apache.hadoop.util.Tool;
+import org.apache.hadoop.util.ToolRunner;
+
+public class Q10MiddlePersonsCountForComm extends Configured implements Tool {
+
+    public static class MapClass extends Mapper<LongWritable, Text, IntWritable, Text> {
+
+        public void map(LongWritable key, Text value, Context context) throws IOException,         InterruptedException {
+
+            // 对员工文件字段进行拆分
+            String[] kv = value.toString().split(",");
+
+            // 输出key为0和value为员工编号+","+员工经理编号
+            context.write(new IntWritable(0), new Text(kv[0] + "," + ("".equals(kv[3]) ? " " : kv[3])));
+        }
+    }
+
+    public static class Reduce extends Reducer<IntWritable, Text, NullWritable, Text> {
+
+        // 定义员工列表和员工对应经理Map
+        List<String> employeeList = new ArrayList<String>();
+        Map<String, String> employeeToManagerMap = new HashMap<String, String>();
+
+        public void reduce(IntWritable key, Iterable<Text> values, Context context) throws         IOException, InterruptedException {
+
+            // 在reduce阶段把所有员工放到员工列表和员工对应经理Map中
+            for (Text value : values) {
+                employeeList.add(value.toString().split(",")[0].trim());
+                employeeToManagerMap.put(value.toString().split(",")[0].trim(),                             value.toString().split(",")[1].trim());
+            }
+        }
+
+        @Override
+        protected void cleanup(Context context) throws IOException, InterruptedException {
+            int totalEmployee = employeeList.size();
+            int i, j;
+            int distance;
+            System.out.println(employeeList);
+            System.out.println(employeeToManagerMap);
+
+            // 对任意两个员工计算出沟通的路径长度并输出
+            for (i = 0; i < (totalEmployee - 1); i++) {
+                for (j = (i + 1); j < totalEmployee; j++) {
+                    distance = calculateDistance(i, j);
+                    String value = employeeList.get(i) + " and " + employeeList.get(j) + " =                     " + distance;
+                    context.write(NullWritable.get(), new Text(value));
+                }
+            }
+        }
+
+        /**
+         * 该公司可以由所有员工形成树形结构，求两个员工的沟通的中间节点数，可以转换在员工树中两员工之间的距离
+         * 由于在树中任意两点都会在某上级节点汇合，根据该情况设计了如下算法
+         */
+        private int calculateDistance(int i, int j) {
+            String employeeA = employeeList.get(i);
+            String employeeB = employeeList.get(j);
+            int distance = 0;
+
+            // 如果A是B的经理，反之亦然
+            if (employeeToManagerMap.get(employeeA).equals(employeeB) ||                                     employeeToManagerMap.get(employeeB).equals(employeeA)) {
+                distance = 0;
+            }
+            // A和B在同一经理下
+            else if  (employeeToManagerMap.get(employeeA).equals(
+                    employeeToManagerMap.get(employeeB))) {
+                distance = 0;
+            } else {
+                // 定义A和B对应经理链表
+                List<String> employeeA_ManagerList = new ArrayList<String>();
+                List<String> employeeB_ManagerList = new ArrayList<String>();
+
+                // 获取从A开始经理链表
+                employeeA_ManagerList.add(employeeA);
+                String current = employeeA;
+                while (false == employeeToManagerMap.get(current).isEmpty()) {
+                    current = employeeToManagerMap.get(current);
+                    employeeA_ManagerList.add(current);
+                }
+
+                // 获取从B开始经理链表
+                employeeB_ManagerList.add(employeeB);
+                current = employeeB;
+                while (false == employeeToManagerMap.get(current).isEmpty()) {
+                    current = employeeToManagerMap.get(current);
+                    employeeB_ManagerList.add(current);
+                }
+
+                int ii = 0, jj = 0;
+                String currentA_manager, currentB_manager;
+                boolean found = false;
+
+                // 遍历A与B开始经理链表，找出汇合点计算
+                for (ii = 0; ii < employeeA_ManagerList.size(); ii++) {
+                    currentA_manager = employeeA_ManagerList.get(ii);
+                    for (jj = 0; jj < employeeB_ManagerList.size(); jj++) {
+                        currentB_manager = employeeB_ManagerList.get(jj);
+                        if (currentA_manager.equals(currentB_manager)) {
+                            found = true;
+                            break;
+                        }
+                    }
+
+                    if (found) {
+                        break;
+                    }
+                }
+
+                // 最后获取两只之前的路径
+                distance = ii + jj - 1;
+            }
+
+            return distance;
+        }
+    }
+
+    @Override
+    public int run(String[] args) throws Exception {
+
+        // 实例化作业对象，设置作业名称
+        Job job = new Job(getConf(), "Q10MiddlePersonsCountForComm");
+        job.setJobName("Q10MiddlePersonsCountForComm");
+
+        // 设置Mapper和Reduce类
+        job.setJarByClass(Q10MiddlePersonsCountForComm.class);
+        job.setMapperClass(MapClass.class);
+        job.setReducerClass(Reduce.class);
+
+        // 设置Mapper输出格式类
+        job.setMapOutputKeyClass(IntWritable.class);
+        job.setMapOutputValueClass(Text.class);
+
+        // 设置Reduce输出键和值类型
+        job.setOutputFormatClass(TextOutputFormat.class);
+        job.setOutputKeyClass(NullWritable.class);
+        job.setOutputValueClass(Text.class);
+
+        // 第1个参数为员工数据路径和第2个参数为输出路径
+        String[] otherArgs = new GenericOptionsParser(job.getConfiguration(),                     args).getRemainingArgs();
+        FileInputFormat.addInputPath(job, new Path(otherArgs[0]));
+        FileOutputFormat.setOutputPath(job, new Path(otherArgs[1]));
+
+        job.waitForCompletion(true);
+        return job.isSuccessful() ? 0 : 1;
+    }
+
+    /**
+     * 主方法，执行入口
+     * @param args 输入参数
+     */
+    public static void main(String[] args) throws Exception {
+        int res = ToolRunner.run(new Configuration(), new Q10MiddlePersonsCountForComm(), args);
+        System.exit(res);
+    }
+}
+请详细分析一下每一句代码。
+    
+    
+    
 
 
 
@@ -3127,7 +3899,54 @@ hadoop fs -cat /class6/out7/part-r-00000
 
 43.
 
+编译并打包代码
 
+进入 /app/hadoop-1.1.2/myclass/class6 目录中新建 Q10MiddlePersonsCountForComm.java 程序代码（代码也可以使用 /home/shiyanlou/install-pack/class6/Q10MiddlePersonsCountForComm.java 文件）。
+
+cd /app/hadoop-1.1.2/myclass/class6
+vi Q10MiddlePersonsCountForComm.java
+
+编译代码
+
+javac -classpath ../../hadoop-core-1.1.2.jar:../../lib/commons-cli-1.2.jar Q10MiddlePersonsCountForComm.java
+
+把编译好的代码打成 jar 包，如果不打成 jar 形式运行会提示 class 无法找到的错误。
+
+jar cvf ./Q10MiddlePersonsCountForComm.jar ./Q10MiddlePersons*.class
+mv *.jar ../..
+rm Q10MiddlePersons*.class
+请详细分析一下每一句话。
+    
+    
+    这段代码是在Linux系统下使用Hadoop框架编译并打包Java程序的过程。下面是每一句话的详细解释：
+
+1. 进入 /app/hadoop-1.1.2/myclass/class6 目录中新建 Q10MiddlePersonsCountComm.java 程序代码（代码也可以使用 /home/shiyanlou/install-pack/class6/Q10MiddlePersonsCountForComm.java 文件）。
+
+这句话的作用是进入指定目录，并在该目录下新建一个Java程序文件Q10MiddlePersonsCountForComm.java。如果该目录下已经存在该文件，则可以使用指定路径下的文件。
+
+2. cd /app/hadoop-1.1.2/myclass/class6
+
+这句话的作用是进入指定目录。
+
+3. vi Q10MiddlePersonsCountForComm.java
+
+这句话的作用是使用vi编辑器开指定的Java程序文件，以便进行编辑。
+
+4. javac -classpath ../../hadoop-core-1.1.2.jar:../../lib/commons-cli-1.2.jar Q10MiddlePersonsCountForComm.java
+
+这句话的作用是使用javac编译指定的Java程序文件，并指定编译时需要使用的类路径。其中，-classpath参数指了需要使用的类路径，../../hadoop-core-1.1.2.jar和../../lib/commons-cli-1.2.jar是需要使用的类库文件，Q10MiddlePersonsCountForComm.java是需要编译的Java程序文件。
+
+5. cvf ./Q10MiddlePersonsCountForComm.jar ./Q10MiddlePersons*.class
+
+这句话的作用是使用jar命令将编译好的Java程序文件打包成jar文件。其中，cvf参数表示创建新的jar文件./Q10MiddlePersonsCountForComm.jar是指定的jar文件名，./Q10MiddlePersons*.class是指定需要打包的Java程序文件。
+
+6. mv *.jar ../..
+
+这句话的作用是将打包好的jar文件移动到上一级目录中。
+
+7. rm Q10MiddlePersons*.class
+
+这句话的作用是删除编译好的Java程序文件，以便下一次编译。
 
 
 
@@ -3136,7 +3955,49 @@ hadoop fs -cat /class6/out7/part-r-00000
 
 44.
 
+运行并查看结果
 
+运行 Q10MiddlePersonsCountForComm 运行的员工数据路径和输出路径两个参数，需要注意的是 hdfs 的路径参数路径需要全路径，否则运行会报错：
+
+员工数据路径：hdfs://hadoop:9000/class6/input/emp。
+输出路径：hdfs://hadoop:9000/class6/out10。
+运行如下命令：
+
+cd /app/hadoop-1.1.2
+hadoop jar Q10MiddlePersonsCountForComm.jar Q10MiddlePersonsCountForComm hdfs://hadoop:9000/class6/input/emp hdfs://hadoop:9000/class6/out10
+运行成功后，刷新 CentOS HDFS 中的输出路径 /class6/out10 目录。
+
+hadoop fs -ls /class6/out10
+hadoop fs -cat /class6/out10/part-r-00000
+
+打开 part-r-00000 文件，可以看到运行结果：
+
+7369 and 7499 = 4
+7369 and 7521 = 4
+7369 and 7566 = 1
+7369 and 7654 = 4
+7369 and 7698 = 3
+......
+请详细分析每一句话。
+    
+    
+    这段代码是在Linux系统下使用Hadoop框架运行Java程序并查看结果的过程。下面是每一句话的详细解释：
+
+1. cd /app/hadoop-11.2
+
+这句话的作用是进入指定目录。
+
+2. hadoop jar Q10MiddlePersonsCountForComm.jar Q10MiddlePersonsCountFor hdfs://hadoop:9000/class6/input/emp hdfs://hadoop:9000/class6/out10
+
+这句话的作用是使用hadoop命令运行指定的Java程序，并指定程序需要使用的输入路径和输出路径。其中，hadoop jar命令表示使用Hadoop框架运行Java程序，Q10MiddlePersonsCountForComm.jar是指定的Java程序文件，Q10MiddlePersonsCountForComm是指定的Java程序类名，hdfs://hadoop:9000/class6/input/emp是指定的输入路径，h://hadoop:9000/class6/out10是指定的输出路径。
+
+3. hadoop fs -ls /class6/out10
+
+这句话的作用是使用hadoop fs命令查看指定路径下的文件列表。其中，-ls参数表示列出指定路径下的文件列表，class6/out10是指定的路径。
+
+4. hadoop fs -cat /class6/out10/part-r-00000
+
+这句话的作用是使用hadoop fs命令查看指定文件的内容。其中，-cat参数表示查看指定文件的内容，/class6/out10/part-r00000是指定的文件路径。
 
 
 
